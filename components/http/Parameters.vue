@@ -1,152 +1,291 @@
 <template>
   <AppSection label="parameters">
-    <ul v-if="params.length !== 0">
-      <li>
-        <div class="row-wrapper">
-          <label for="paramList">{{ $t("parameter_list") }}</label>
-          <div>
-            <button
-              v-tooltip.bottom="$t('clear')"
-              class="icon button"
-              @click="clearContent('parameters', $event)"
-            >
-              <i class="material-icons">clear_all</i>
-            </button>
-          </div>
-        </div>
-      </li>
-    </ul>
-    <ul
-      v-for="(param, index) in params"
-      :key="index"
+    <div
       class="
-        border-b border-dashed
-        divide-y
-        md:divide-x
-        border-divider
-        divide-dashed divide-divider
-        md:divide-y-0
+        bg-primary
+        border-b border-dividerLight
+        flex flex-1
+        top-upperSecondaryStickyFold
+        pl-4
+        z-10
+        sticky
+        items-center
+        justify-between
       "
-      :class="{ 'border-t': index == 0 }"
     >
-      <li>
+      <label class="font-semibold text-secondaryLight">
+        {{ $t("request.parameter_list") }}
+      </label>
+      <div class="flex">
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          to="https://docs.hoppscotch.io/features/parameters"
+          blank
+          :title="$t('app.wiki')"
+          svg="help-circle"
+        />
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.clear_all')"
+          svg="trash-2"
+          :disabled="bulkMode"
+          @click.native="clearContent"
+        />
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('state.bulk_mode')"
+          svg="edit"
+          :class="{ '!text-accent': bulkMode }"
+          @click.native="bulkMode = !bulkMode"
+        />
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('add.new')"
+          svg="plus"
+          :disabled="bulkMode"
+          @click.native="addParam"
+        />
+      </div>
+    </div>
+    <div v-if="bulkMode" class="flex">
+      <textarea-autosize
+        v-model="bulkParams"
+        v-focus
+        name="bulk-parameters"
+        class="
+          bg-transparent
+          border-b border-dividerLight
+          flex
+          font-mono font-medium
+          flex-1
+          py-2
+          px-4
+          whitespace-pre
+          resize-y
+          overflow-auto
+        "
+        rows="10"
+        :placeholder="$t('state.bulk_mode_placeholder')"
+      />
+    </div>
+    <div v-else>
+      <div
+        v-for="(param, index) in params$"
+        :key="`param-${index}`"
+        class="divide-x divide-dividerLight border-b border-dividerLight flex"
+      >
+        <SmartEnvInput
+          v-if="EXPERIMENTAL_URL_BAR_ENABLED"
+          v-model="param.key"
+          :placeholder="$t('count.parameter', { count: index + 1 })"
+          styles="
+            bg-transparent
+            flex
+            flex-1
+            py-1
+            px-4
+          "
+          @change="
+            updateParam(index, {
+              key: $event,
+              value: param.value,
+              active: param.active,
+            })
+          "
+        />
         <input
-          class="input"
-          :placeholder="$t('parameter_count', { count: index + 1 })"
+          v-else
+          class="bg-transparent flex flex-1 py-2 px-4"
+          :placeholder="$t('count.parameter', { count: index + 1 })"
           :name="'param' + index"
           :value="param.key"
           autofocus
           @change="
-            $store.commit('setKeyParams', {
-              index,
-              value: $event.target.value,
+            updateParam(index, {
+              key: $event.target.value,
+              value: param.value,
+              active: param.active,
             })
           "
         />
-      </li>
-      <li>
+        <SmartEnvInput
+          v-if="EXPERIMENTAL_URL_BAR_ENABLED"
+          v-model="param.value"
+          :placeholder="$t('count.value', { count: index + 1 })"
+          styles="
+            bg-transparent
+            flex
+            flex-1
+            py-1
+            px-4
+          "
+          @change="
+            updateParam(index, {
+              key: param.key,
+              value: $event,
+              active: param.active,
+            })
+          "
+        />
         <input
-          class="input"
-          :placeholder="$t('value_count', { count: index + 1 })"
+          v-else
+          class="bg-transparent flex flex-1 py-2 px-4"
+          :placeholder="$t('count.value', { count: index + 1 })"
           :name="'value' + index"
           :value="param.value"
           @change="
-            $store.commit('setValueParams', {
-              index,
+            updateParam(index, {
+              key: param.key,
               value: $event.target.value,
+              active: param.active,
             })
           "
         />
-      </li>
-      <li>
-        <span class="select-wrapper">
-          <select
-            class="select"
-            :name="'type' + index"
-            @change="
-              $store.commit('setTypeParams', {
-                index,
-                value: $event.target.value,
-              })
-            "
-          >
-            <option value="query" :selected="param.type === 'query'">
-              {{ $t("query") }}
-            </option>
-            <option value="path" :selected="param.type === 'path'">
-              {{ $t("path") }}
-            </option>
-          </select>
-        </span>
-      </li>
-      <div>
-        <li>
-          <button
-            v-tooltip.bottom="{
-              content: param.hasOwnProperty('active')
+        <span>
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            :title="
+              param.hasOwnProperty('active')
                 ? param.active
-                  ? $t('turn_off')
-                  : $t('turn_on')
-                : $t('turn_off'),
-            }"
-            class="icon button"
-            @click="
-              $store.commit('setActiveParams', {
-                index,
-                value: param.hasOwnProperty('active') ? !param.active : false,
+                  ? $t('action.turn_off')
+                  : $t('action.turn_on')
+                : $t('action.turn_off')
+            "
+            :svg="
+              param.hasOwnProperty('active')
+                ? param.active
+                  ? 'check-circle'
+                  : 'circle'
+                : 'check-circle'
+            "
+            color="green"
+            @click.native="
+              updateParam(index, {
+                key: param.key,
+                value: param.value,
+                active: param.hasOwnProperty('active') ? !param.active : false,
               })
             "
-          >
-            <i class="material-icons">
-              {{
-                param.hasOwnProperty("active")
-                  ? param.active
-                    ? "check_box"
-                    : "check_box_outline_blank"
-                  : "check_box"
-              }}
-            </i>
-          </button>
-        </li>
+          />
+        </span>
+        <span>
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            :title="$t('action.remove')"
+            svg="trash"
+            color="red"
+            @click.native="deleteParam(index)"
+          />
+        </span>
       </div>
-      <div>
-        <li>
-          <button
-            v-tooltip.bottom="$t('delete')"
-            class="icon button"
-            @click="removeRequestParam(index)"
-          >
-            <i class="material-icons">delete</i>
-          </button>
-        </li>
+      <div
+        v-if="params$.length === 0"
+        class="
+          flex flex-col
+          text-secondaryLight
+          p-4
+          items-center
+          justify-center
+        "
+      >
+        <span class="text-center pb-4">
+          {{ $t("empty.parameters") }}
+        </span>
+        <ButtonSecondary
+          :label="$t('add.new')"
+          svg="plus"
+          filled
+          @click.native="addParam"
+        />
       </div>
-    </ul>
-    <ul>
-      <li>
-        <button class="icon button" @click="addRequestParam">
-          <i class="material-icons">add</i>
-          <span>{{ $t("add_new") }}</span>
-        </button>
-      </li>
-    </ul>
+    </div>
   </AppSection>
 </template>
 
-<script>
-export default {
-  props: {
-    params: { type: Array, default: () => [] },
+<script lang="ts">
+import {
+  defineComponent,
+  ref,
+  useContext,
+  watch,
+} from "@nuxtjs/composition-api"
+import { HoppRESTParam } from "~/helpers/types/HoppRESTRequest"
+import { useReadonlyStream } from "~/helpers/utils/composables"
+import {
+  restParams$,
+  addRESTParam,
+  updateRESTParam,
+  deleteRESTParam,
+  deleteAllRESTParams,
+  setRESTParams,
+} from "~/newstore/RESTSession"
+import { useSetting } from "~/newstore/settings"
+
+export default defineComponent({
+  setup() {
+    const {
+      $toast,
+      app: { i18n },
+    } = useContext()
+    const t = i18n.t.bind(i18n)
+
+    const bulkMode = ref(false)
+    const bulkParams = ref("")
+
+    watch(bulkParams, () => {
+      try {
+        const transformation = bulkParams.value.split("\n").map((item) => ({
+          key: item.substring(0, item.indexOf(":")).trim().replace(/^\/\//, ""),
+          value: item.substring(item.indexOf(":") + 1).trim(),
+          active: !item.trim().startsWith("//"),
+        }))
+        setRESTParams(transformation)
+      } catch (e) {
+        $toast.error(t("error.something_went_wrong").toString(), {
+          icon: "error_outline",
+        })
+        console.error(e)
+      }
+    })
+
+    return {
+      params$: useReadonlyStream(restParams$, []),
+      EXPERIMENTAL_URL_BAR_ENABLED: useSetting("EXPERIMENTAL_URL_BAR_ENABLED"),
+      bulkMode,
+      bulkParams,
+    }
   },
+  watch: {
+    params$: {
+      handler(newValue) {
+        if (
+          (newValue[newValue.length - 1]?.key !== "" ||
+            newValue[newValue.length - 1]?.value !== "") &&
+          newValue.length
+        )
+          this.addParam()
+      },
+      deep: true,
+    },
+  },
+  // mounted() {
+  //   if (!this.params$?.length) {
+  //     this.addParam()
+  //   }
+  // },
   methods: {
-    clearContent(parameters, $event) {
-      this.$emit("clear-content", parameters, $event)
+    addParam() {
+      addRESTParam({ key: "", value: "", active: true })
     },
-    removeRequestParam(index) {
-      this.$emit("remove-request-param", index)
+    updateParam(index: number, item: HoppRESTParam) {
+      updateRESTParam(index, item)
     },
-    addRequestParam() {
-      this.$emit("add-request-param")
+    deleteParam(index: number) {
+      deleteRESTParam(index)
+    },
+    clearContent() {
+      deleteAllRESTParams()
     },
   },
-}
+})
 </script>

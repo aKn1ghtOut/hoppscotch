@@ -1,18 +1,19 @@
 <template>
-  <div class="flex container flex-col min-h-screen">
-    <span v-if="signingInWithEmail" class="info">{{ $t("loading") }}</span>
-    <span v-else class="info">{{ $t("waiting_for_connection") }}</span>
+  <div class="flex flex-col min-h-screen items-center justify-center">
+    <SmartSpinner v-if="signingInWithEmail" />
+    <SmartLoadingIndicator v-else />
     <pre v-if="error">{{ error }}</pre>
   </div>
 </template>
 
 <script lang="ts">
-import Vue from "vue"
+import { defineComponent } from "@nuxtjs/composition-api"
 import { initializeFirebase } from "~/helpers/fb"
 import { isSignInWithEmailLink, signInWithEmailLink } from "~/helpers/fb/auth"
 import { getLocalConfig, removeLocalConfig } from "~/newstore/localpersistence"
 
-export default Vue.extend({
+export default defineComponent({
+  layout: "empty",
   data() {
     return {
       signingInWithEmail: false,
@@ -39,9 +40,9 @@ export default Vue.extend({
           removeLocalConfig("emailForSignIn")
           this.$router.push({ path: "/" })
         })
-        .catch((error) => {
+        .catch((e) => {
           this.signingInWithEmail = false
-          this.error = error.message
+          this.error = e.message
         })
         .finally(() => {
           this.signingInWithEmail = false

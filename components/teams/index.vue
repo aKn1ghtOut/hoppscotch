@@ -1,16 +1,39 @@
 <template>
   <AppSection label="teams">
-    <div class="flex flex-col">
-      <label>{{ $t("teams") }}</label>
-      <div v-if="currentUser"></div>
-      <div v-else>
-        <label>{{ $t("login_with") }}</label>
-        <p>
-          <FirebaseLogin @show-email="showEmail = true" />
-        </p>
+    <h4 class="text-secondaryDark">
+      {{ $t("team.title") }}
+    </h4>
+    <div class="mt-1 text-secondaryLight">
+      <SmartAnchor
+        :label="$t('team.join_beta')"
+        to="https://hoppscotch.io/beta"
+        blank
+        class="link"
+      />
+    </div>
+    <div class="space-y-4 mt-4">
+      <ButtonSecondary
+        :label="$t('team.create_new')"
+        outline
+        @click.native="displayModalAdd(true)"
+      />
+      <p v-if="$apollo.queries.myTeams.loading">
+        {{ $t("state.loading") }}
+      </p>
+      <div v-if="myTeams.length === 0" class="flex items-center">
+        <i class="mr-4 material-icons">help_outline</i>
+        {{ $t("empty.teams") }}
+      </div>
+      <div v-else class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <TeamsTeam
+          v-for="(team, index) in myTeams"
+          :key="`team-${index}`"
+          :team-i-d="team.id"
+          :team="team"
+          @edit-team="editTeam(team, team.id)"
+        />
       </div>
     </div>
-
     <TeamsAdd :show="showModalAdd" @hide-modal="displayModalAdd(false)" />
     <TeamsEdit
       :team="myTeams[0]"
@@ -19,40 +42,21 @@
       :editingteam-i-d="editingteamID"
       @hide-modal="displayModalEdit(false)"
     />
-    <div class="row-wrapper">
-      <div>
-        <button class="icon button" @click="displayModalAdd(true)">
-          <i class="material-icons">add</i>
-          <span>{{ $t("new") }}</span>
-        </button>
-      </div>
-    </div>
-    <p v-if="$apollo.queries.myTeams.loading" class="info">
-      {{ $t("loading") }}
-    </p>
-    <p v-if="myTeams.length === 0" class="info">
-      <i class="material-icons">help_outline</i> {{ $t("create_new_team") }}
-    </p>
-    <div v-else class="virtual-list">
-      <ul class="flex-col">
-        <li v-for="(team, index) in myTeams" :key="`team-${index}`">
-          <TeamsTeam
-            :team-i-d="team.id"
-            :team="team"
-            @edit-team="editTeam(team, team.id)"
-          />
-        </li>
-      </ul>
-    </div>
-    <FirebaseEmail :show="showEmail" @hide-modal="showEmail = false" />
   </AppSection>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
 import gql from "graphql-tag"
 import { currentUser$ } from "~/helpers/fb/auth"
+import { useReadonlyStream } from "~/helpers/utils/composables"
 
-export default {
+export default defineComponent({
+  setup() {
+    return {
+      currentUser: useReadonlyStream(currentUser$, null),
+    }
+  },
   data() {
     return {
       showModalAdd: false,
@@ -61,12 +65,6 @@ export default {
       editingteamID: "",
       me: {},
       myTeams: [],
-      showEmail: false,
-    }
-  },
-  subscriptions() {
-    return {
-      currentUser: currentUser$,
     }
   },
   apollo: {
@@ -91,6 +89,7 @@ export default {
             ownersCount
             members {
               user {
+                photoURL
                 displayName
                 email
                 uid
@@ -125,15 +124,5 @@ export default {
       this.$data.editingteamID = undefined
     },
   },
-}
+})
 </script>
-
-<style scoped lang="scss">
-.virtual-list {
-  max-height: calc(100vh - 241px);
-}
-
-ul {
-  @apply flex flex-col;
-}
-</style>

@@ -1,192 +1,100 @@
 <template>
-  <div>
-    <div class="show-on-large-screen">
-      <span
-        class="cursor-pointer m-2 text-sm p-2 truncate inline-flex items-center"
-        :class="entryStatus.className"
-        :style="{ '--status-code': entry.status }"
-        @click="$emit('use-entry')"
-      >
-        {{ `${entry.method} \xA0 • \xA0 ${entry.status}` }}
+  <div class="flex items-center group">
+    <span
+      class="cursor-pointer flex px-2 w-16 justify-center items-center truncate"
+      :class="entryStatus.className"
+      data-testid="restore_history_entry"
+      :title="duration"
+      @click="$emit('use-entry')"
+    >
+      {{ entry.request.method }}
+    </span>
+    <span
+      class="
+        cursor-pointer
+        flex flex-1
+        min-w-0
+        py-2
+        pr-2
+        transition
+        group-hover:text-secondaryDark
+      "
+      data-testid="restore_history_entry"
+      :title="duration"
+      @click="$emit('use-entry')"
+    >
+      <span class="truncate">
+        {{ entry.request.endpoint }}
       </span>
-      <li>
-        <input
-          :aria-label="$t('token_req_name')"
-          type="text"
-          readonly
-          :value="entry.name"
-          :placeholder="$t('empty_req_name')"
-          class="cursor-pointer text-sm input !bg-transparent"
-          @click="$emit('use-entry')"
-        />
-      </li>
-      <span>
-        <button
-          v-tooltip="{
-            content: !entry.star ? $t('add_star') : $t('remove_star'),
-          }"
-          data-testid="star_button"
-          class="icon button"
-          :class="{ stared: entry.star }"
-          @click="$emit('toggle-star')"
-        >
-          <i class="material-icons">
-            {{ entry.star ? "star" : "star_border" }}
-          </i>
-        </button>
-      </span>
-      <!-- <li>
-            <button
-              class="icon button"
-              v-tooltip="{
-                content: !entry.usesScripts
-                  ? 'No pre-request script'
-                  : 'Used pre-request script'
-              }"
-            >
-              <i class="material-icons">
-                {{ !entry.usesScripts ? "http" : "code" }}
-              </i>
-            </button>
-          </li> -->
-      <v-popover>
-        <button v-tooltip="$t('options')" class="tooltip-target icon button">
-          <i class="material-icons">more_vert</i>
-        </button>
-        <template #popover>
-          <div>
-            <button
-              v-close-popover
-              data-testid="restore_history_entry"
-              class="icon button"
-              :aria-label="$t('edit')"
-              @click="$emit('use-entry')"
-            >
-              <i class="material-icons">restore</i>
-              <span>{{ $t("restore") }}</span>
-            </button>
-          </div>
-          <div>
-            <button
-              v-close-popover
-              data-testid="delete_history_entry"
-              class="icon button"
-              :aria-label="$t('delete')"
-              @click="$emit('delete-entry')"
-            >
-              <i class="material-icons">delete</i>
-              <span>{{ $t("delete") }}</span>
-            </button>
-          </div>
-        </template>
-      </v-popover>
-    </div>
-    <div class="show-on-large-screen">
-      <li>
-        <input
-          :aria-label="$t('url')"
-          type="text"
-          readonly
-          :value="`${entry.url}${entry.path}`"
-          :placeholder="$t('no_url')"
-          class="text-sm input !bg-transparent !mt-0 !text-secondaryLight !pt-0"
-        />
-      </li>
-    </div>
-    <transition name="fade">
-      <div v-if="showMore" class="show-on-large-screen">
-        <li>
-          <input
-            v-tooltip="entry.date"
-            :aria-label="$t('time')"
-            type="text"
-            readonly
-            :value="entry.time"
-            class="
-              text-sm
-              input
-              !bg-transparent
-              !mt-0
-              !text-secondaryLight
-              !pt-0
-            "
-          />
-        </li>
-        <li>
-          <input
-            :aria-label="$t('duration')"
-            type="text"
-            readonly
-            :value="duration"
-            class="
-              text-sm
-              input
-              !bg-transparent
-              !mt-0
-              !text-secondaryLight
-              !pt-0
-            "
-          />
-        </li>
-        <!-- <li>
-          <input class="input"
-            :aria-label="$t('prerequest_script')"
-            type="text"
-            readonly
-            :value="entry.preRequestScript"
-            :placeholder="$t('no_prerequest_script')"
-            class="bg-transparent mt-0 text-sm text-secondaryLight pt-0"
-          />
-        </li> -->
-      </div>
-    </transition>
+    </span>
+    <ButtonSecondary
+      v-tippy="{ theme: 'tooltip' }"
+      svg="trash"
+      color="red"
+      :title="$t('action.remove')"
+      class="hidden group-hover:inline-flex"
+      data-testid="delete_history_entry"
+      @click.native="$emit('delete-entry')"
+    />
+    <ButtonSecondary
+      v-tippy="{ theme: 'tooltip' }"
+      :title="!entry.star ? $t('add.star') : $t('remove.star')"
+      :class="{ 'group-hover:inline-flex hidden': !entry.star }"
+      :svg="entry.star ? 'star-solid' : 'star'"
+      color="yellow"
+      data-testid="star_button"
+      @click.native="$emit('toggle-star')"
+    />
   </div>
 </template>
 
-<script>
+<script lang="ts">
+import {
+  computed,
+  defineComponent,
+  PropType,
+  useContext,
+} from "@nuxtjs/composition-api"
 import findStatusGroup from "~/helpers/findStatusGroup"
+import { RESTHistoryEntry } from "~/newstore/history"
 
-export default {
+export default defineComponent({
   props: {
-    entry: { type: Object, default: () => {} },
+    entry: { type: Object as PropType<RESTHistoryEntry>, default: () => {} },
     showMore: Boolean,
   },
-  data() {
-    return {
-      expand: false,
-    }
-  },
-  computed: {
-    duration() {
-      const { duration } = this.entry
-      return duration > 0
-        ? `${this.$t("duration")}: ${duration}ms`
-        : this.$t("no_duration")
-    },
-    entryStatus() {
-      const foundStatusGroup = findStatusGroup(this.entry.status)
+  setup(props) {
+    const {
+      app: { i18n },
+    } = useContext()
+    const $t = i18n.t.bind(i18n)
+
+    const duration = computed(() => {
+      if (props.entry.responseMeta.duration) {
+        const responseDuration = props.entry.responseMeta.duration
+        if (!responseDuration) return ""
+
+        return responseDuration > 0
+          ? `${$t("request.duration").toString()}: ${responseDuration}ms`
+          : $t("error.no_duration").toString()
+      } else return $t("error.no_duration").toString()
+    })
+
+    const entryStatus = computed(() => {
+      const foundStatusGroup = findStatusGroup(
+        props.entry.responseMeta.statusCode
+      )
       return (
         foundStatusGroup || {
           className: "",
         }
       )
-    },
+    })
+
+    return {
+      duration,
+      entryStatus,
+    }
   },
-}
+})
 </script>
-
-<style scoped lang="scss">
-.stared {
-  color: #f8e81c !important;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.2s;
-}
-
-.fade-enter,
-.fade-leave-to {
-  @apply opacity-0;
-}
-</style>

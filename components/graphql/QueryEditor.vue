@@ -9,13 +9,13 @@ import ace from "ace-builds"
 import "ace-builds/webpack-resolver"
 import "ace-builds/src-noconflict/ext-language_tools"
 import "ace-builds/src-noconflict/mode-graphqlschema"
-
 import * as gql from "graphql"
 import { getAutocompleteSuggestions } from "graphql-language-service-interface"
+import { defineComponent } from "@nuxtjs/composition-api"
 import { defineGQLLanguageMode } from "~/helpers/syntax/gqlQueryLangMode"
 import debounce from "~/helpers/utils/debounce"
 
-export default {
+export default defineComponent({
   props: {
     value: {
       type: String,
@@ -47,6 +47,14 @@ export default {
       cacheValue: "",
       validationSchema: null,
     }
+  },
+
+  computed: {
+    appFontSize() {
+      return getComputedStyle(document.documentElement).getPropertyValue(
+        "--body-font-size"
+      )
+    },
   },
 
   watch: {
@@ -94,6 +102,8 @@ export default {
         this.initialized = true
       })
     })
+
+    editor.setFontSize(this.appFontSize)
 
     const completer = {
       getCompletions: (
@@ -172,8 +182,8 @@ export default {
       try {
         this.$emit("update-query", gql.print(gql.parse(this.editor.getValue())))
       } catch (e) {
-        this.$toast.error(`${this.$t("gql_prettify_invalid_query")}`, {
-          icon: "error",
+        this.$toast.error(this.$t("error.gql_prettify_invalid_query"), {
+          icon: "error_outline",
         })
       }
     },
@@ -228,7 +238,7 @@ export default {
       }
     }, 2000),
   },
-}
+})
 </script>
 
 <style scoped lang="scss">

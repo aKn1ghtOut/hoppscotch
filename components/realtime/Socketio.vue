@@ -1,154 +1,183 @@
 <template>
-  <div>
-    <AppSection label="request">
-      <ul>
-        <li>
-          <label for="socketio-url">{{ $t("url") }}</label>
-          <input
-            id="socketio-url"
-            v-model="url"
-            type="url"
-            spellcheck="false"
-            :class="{ error: !urlValid }"
-            class="input md:rounded-bl-lg"
-            :placeholder="$t('url')"
-            @keyup.enter="urlValid ? toggleConnection() : null"
-          />
-        </li>
-        <div>
-          <li>
-            <label for="socketio-path">{{ $t("path") }}</label>
-            <input
-              id="socketio-path"
-              v-model="path"
-              class="input"
-              spellcheck="false"
-            />
-          </li>
+  <Splitpanes class="smart-splitter" :dbl-click-splitter="false" vertical>
+    <Pane class="hide-scrollbar !overflow-auto">
+      <Splitpanes class="smart-splitter" :dbl-click-splitter="false" horizontal>
+        <Pane class="hide-scrollbar !overflow-auto">
+          <AppSection label="request">
+            <div class="bg-primary flex p-4 top-0 z-10 sticky">
+              <div class="space-x-2 flex-1 inline-flex">
+                <div class="flex flex-1">
+                  <input
+                    id="socketio-url"
+                    v-model="url"
+                    v-focus
+                    type="url"
+                    autocomplete="off"
+                    spellcheck="false"
+                    :class="{ error: !urlValid }"
+                    class="
+                      bg-primaryLight
+                      border border-divider
+                      rounded-l
+                      flex flex-1
+                      text-secondaryDark
+                      w-full
+                      py-2
+                      px-4
+                      hover:border-dividerDark
+                      focus-visible:bg-transparent
+                      focus-visible:border-dividerDark
+                    "
+                    :placeholder="$t('socketio.url')"
+                    @keyup.enter="urlValid ? toggleConnection() : null"
+                  />
+                  <input
+                    id="socketio-path"
+                    v-model="path"
+                    class="
+                      bg-primaryLight
+                      border border-divider
+                      rounded-r
+                      flex flex-1
+                      text-secondaryDark
+                      w-full
+                      py-2
+                      px-4
+                      hover:border-dividerDark
+                      focus-visible:bg-transparent
+                      focus-visible:border-dividerDark
+                    "
+                    spellcheck="false"
+                  />
+                </div>
+                <ButtonPrimary
+                  id="connect"
+                  :disabled="!urlValid"
+                  name="connect"
+                  class="w-32"
+                  :label="
+                    !connectionState
+                      ? $t('action.connect')
+                      : $t('action.disconnect')
+                  "
+                  :loading="connectingState"
+                  @click.native="toggleConnection"
+                />
+              </div>
+            </div>
+          </AppSection>
+        </Pane>
+        <Pane class="hide-scrollbar !overflow-auto">
+          <AppSection label="response">
+            <RealtimeLog :title="$t('socketio.log')" :log="communication.log" />
+          </AppSection>
+        </Pane>
+      </Splitpanes>
+    </Pane>
+    <Pane
+      v-if="RIGHT_SIDEBAR"
+      max-size="35"
+      size="25"
+      min-size="20"
+      class="hide-scrollbar !overflow-auto"
+    >
+      <AppSection label="messages">
+        <div class="flex flex-col flex-1 p-4 inline-flex">
+          <label for="events" class="font-semibold text-secondaryLight">
+            {{ $t("socketio.events") }}
+          </label>
         </div>
-        <div>
-          <li>
-            <label for="connect" class="hide-on-small-screen">&nbsp;</label>
-            <button
-              id="connect"
-              :disabled="!urlValid"
-              name="connect"
-              class="button rounded-b-lg md:rounded-bl-none md:rounded-br-lg"
-              @click="toggleConnection"
-            >
-              {{ !connectionState ? $t("connect") : $t("disconnect") }}
-              <span>
-                <i class="material-icons">
-                  {{ !connectionState ? "sync" : "sync_disabled" }}
-                </i>
-              </span>
-            </button>
-          </li>
-        </div>
-      </ul>
-    </AppSection>
-
-    <AppSection label="response">
-      <ul>
-        <li>
-          <RealtimeLog :title="$t('log')" :log="communication.log" />
-        </li>
-      </ul>
-      <ul>
-        <li>
-          <label for="event_name">{{ $t("event_name") }}</label>
+        <div class="flex px-4">
           <input
             id="event_name"
             v-model="communication.eventName"
             class="input"
             name="event_name"
+            :placeholder="$t('socketio.event_name')"
             type="text"
-            :readonly="!connectionState"
+            autocomplete="off"
+            :disabled="!connectionState"
           />
-        </li>
-      </ul>
-      <ul>
-        <li>
-          <div class="row-wrapper">
-            <label>{{ $t("message") }}s</label>
+        </div>
+        <div class="flex flex-1 p-4 items-center justify-between">
+          <label class="font-semibold text-secondaryLight">
+            {{ $t("socketio.communication") }}
+          </label>
+          <div class="flex">
+            <ButtonSecondary
+              v-tippy="{ theme: 'tooltip' }"
+              :title="$t('add.new')"
+              svg="plus"
+              class="rounded"
+              @click.native="addCommunicationInput"
+            />
           </div>
-        </li>
-      </ul>
-      <ul
-        v-for="(input, index) of communication.inputs"
-        :key="`input-${index}`"
-        :class="{ 'border-t': index == 0 }"
-        class="
-          border-b border-dashed
-          divide-y
-          md:divide-x
-          border-divider
-          divide-dashed divide-divider
-          md:divide-y-0
-        "
-      >
-        <li>
-          <input
-            v-model="communication.inputs[index]"
-            class="input"
-            name="message"
-            type="text"
-            :readonly="!connectionState"
-            @keyup.enter="connectionState ? sendMessage() : null"
-          />
-        </li>
-        <div v-if="index + 1 !== communication.inputs.length">
-          <li>
-            <button
-              v-tooltip.bottom="$t('delete')"
-              class="icon button"
-              @click="removeCommunicationInput({ index })"
-            >
-              <i class="material-icons">delete</i>
-            </button>
-          </li>
         </div>
-        <div v-if="index + 1 === communication.inputs.length">
-          <li>
-            <button
-              id="send"
-              class="button"
-              name="send"
-              :disabled="!connectionState"
-              @click="sendMessage"
-            >
-              {{ $t("send") }}
-              <span>
-                <i class="material-icons">send</i>
-              </span>
-            </button>
-          </li>
+        <div class="flex flex-col space-y-2 px-4">
+          <div
+            v-for="(input, index) of communication.inputs"
+            :key="`input-${index}`"
+          >
+            <div class="flex space-x-2">
+              <input
+                v-model="communication.inputs[index]"
+                class="input"
+                name="message"
+                :placeholder="$t('count.message', { count: index + 1 })"
+                type="text"
+                autocomplete="off"
+                :disabled="!connectionState"
+                @keyup.enter="connectionState ? sendMessage() : null"
+              />
+              <ButtonSecondary
+                v-if="index + 1 !== communication.inputs.length"
+                v-tippy="{ theme: 'tooltip' }"
+                :title="$t('action.remove')"
+                svg="trash"
+                class="rounded"
+                color="red"
+                outline
+                @click.native="removeCommunicationInput({ index })"
+              />
+              <ButtonPrimary
+                v-if="index + 1 === communication.inputs.length"
+                id="send"
+                name="send"
+                :disabled="!connectionState"
+                :label="$t('action.send')"
+                @click.native="sendMessage"
+              />
+            </div>
+          </div>
         </div>
-      </ul>
-      <ul>
-        <li>
-          <button class="icon button" @click="addCommunicationInput">
-            <i class="material-icons">add</i>
-            <span>{{ $t("add_new") }}</span>
-          </button>
-        </li>
-      </ul>
-    </AppSection>
-  </div>
+      </AppSection>
+    </Pane>
+  </Splitpanes>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
+import { Splitpanes, Pane } from "splitpanes"
+import "splitpanes/dist/splitpanes.css"
 import { io as Client } from "socket.io-client"
 import wildcard from "socketio-wildcard"
 import debounce from "~/helpers/utils/debounce"
 import { logHoppRequestRunToAnalytics } from "~/helpers/fb/analytics"
+import { useSetting } from "~/newstore/settings"
 
-export default {
+export default defineComponent({
+  components: { Splitpanes, Pane },
+  setup() {
+    return {
+      RIGHT_SIDEBAR: useSetting("RIGHT_SIDEBAR"),
+    }
+  },
   data() {
     return {
       url: "wss://main-daxrc78qyb411dls-gtw.qovery.io",
       path: "/socket.io",
       isUrlValid: true,
+      connectingState: false,
       connectionState: false,
       io: null,
       communication: {
@@ -197,9 +226,10 @@ export default {
       else return this.disconnect()
     },
     connect() {
+      this.connectingState = true
       this.communication.log = [
         {
-          payload: this.$t("connecting_to", { name: this.url }),
+          payload: this.$t("state.connecting_to", { name: this.url }),
           source: "info",
           color: "var(--accent-color)",
         },
@@ -215,16 +245,17 @@ export default {
         // Add ability to listen to all events
         wildcard(Client.Manager)(this.io)
         this.io.on("connect", () => {
+          this.connectingState = false
           this.connectionState = true
           this.communication.log = [
             {
-              payload: this.$t("connected_to", { name: this.url }),
+              payload: this.$t("state.connected_to", { name: this.url }),
               source: "info",
               color: "var(--accent-color)",
               ts: new Date().toLocaleTimeString(),
             },
           ]
-          this.$toast.success(this.$t("connected"), {
+          this.$toast.success(this.$t("state.connected"), {
             icon: "sync",
           })
         })
@@ -246,21 +277,22 @@ export default {
           this.handleError()
         })
         this.io.on("disconnect", () => {
+          this.connectingState = false
           this.connectionState = false
           this.communication.log.push({
-            payload: this.$t("disconnected_from", { name: this.url }),
+            payload: this.$t("state.disconnected_from", { name: this.url }),
             source: "info",
             color: "#ff5555",
             ts: new Date().toLocaleTimeString(),
           })
-          this.$toast.error(this.$t("disconnected"), {
+          this.$toast.error(this.$t("state.disconnected"), {
             icon: "sync_disabled",
           })
         })
-      } catch (ex) {
-        this.handleError(ex)
-        this.$toast.error(this.$t("something_went_wrong"), {
-          icon: "error",
+      } catch (e) {
+        this.handleError(e)
+        this.$toast.error(this.$t("error.something_went_wrong"), {
+          icon: "error_outline",
         })
       }
 
@@ -273,9 +305,10 @@ export default {
     },
     handleError(error) {
       this.disconnect()
+      this.connectingState = false
       this.connectionState = false
       this.communication.log.push({
-        payload: this.$t("error_occurred"),
+        payload: this.$t("error.something_went_wrong"),
         source: "info",
         color: "#ff5555",
         ts: new Date().toLocaleTimeString(),
@@ -294,7 +327,7 @@ export default {
         .map((input) => {
           try {
             return JSON.parse(input)
-          } catch (err) {
+          } catch (e) {
             return input
           }
         })
@@ -319,5 +352,5 @@ export default {
       }
     },
   },
-}
+})
 </script>

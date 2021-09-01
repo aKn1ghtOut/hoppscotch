@@ -1,31 +1,41 @@
 <template>
-  <section class="tabs-wrapper">
-    <div class="tabs" :class="styles">
-      <ul>
-        <li
-          v-for="(tab, index) in tabs"
-          :key="index"
-          :class="{ 'is-active': tab.isActive }"
-          :tabindex="0"
-          @keyup.enter="selectTab(tab)"
-        >
-          <a :href="tab.href" @click="selectTab(tab)">
-            <i v-if="tab.icon" class="material-icons">
-              {{ tab.icon }}
-            </i>
-            <span v-if="tab.label">{{ tab.label }}</span>
-          </a>
-        </li>
-      </ul>
+  <div class="flex flex-col flex-nowrap flex-1">
+    <div class="tabs hide-scrollbar relative" :class="styles">
+      <div class="flex flex-1">
+        <div class="flex flex-1 justify-between">
+          <div class="flex">
+            <button
+              v-for="(tab, index) in tabs"
+              :key="`tab-${index}`"
+              class="tab"
+              :class="{ active: tab.active }"
+              tabindex="0"
+              @keyup.enter="selectTab(tab)"
+              @click="selectTab(tab)"
+            >
+              <i v-if="tab.icon" class="material-icons">
+                {{ tab.icon }}
+              </i>
+              <span v-if="tab.label">{{ tab.label }}</span>
+              <span v-if="tab.info" class="tab-info">
+                {{ tab.info }}
+              </span>
+            </button>
+          </div>
+          <div class="flex">
+            <slot name="actions"></slot>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="tabs-details">
-      <slot></slot>
-    </div>
-  </section>
+    <slot></slot>
+  </div>
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     styles: {
       type: String,
@@ -46,71 +56,90 @@ export default {
   methods: {
     selectTab({ id }) {
       this.tabs.forEach((tab) => {
-        tab.isActive = tab.id === id
+        tab.active = tab.id === id
       })
       this.$emit("tab-changed", id)
     },
   },
-}
+})
 </script>
 
 <style scoped lang="scss">
-.tabs-wrapper {
-  @apply flex flex-col flex-nowrap flex-1;
+.tabs {
+  @apply flex;
+  @apply whitespace-nowrap;
+  @apply overflow-auto;
 
-  .tabs {
+  // &::after {
+  //   @apply absolute;
+  //   @apply inset-x-0;
+  //   @apply bottom-0;
+  //   @apply bg-dividerLight;
+  //   @apply z-1;
+  //   @apply h-0.5;
+
+  //   content: "";
+  // }
+
+  .tab {
+    @apply relative;
     @apply flex;
-    @apply whitespace-nowrap;
-    @apply overflow-auto;
-    @apply mt-4;
+    @apply items-center;
+    @apply justify-center;
+    @apply px-4 py-2;
+    @apply text-secondary;
+    @apply font-semibold;
+    @apply cursor-pointer;
+    @apply hover:text-secondaryDark;
+    @apply focus:outline-none;
+    @apply focus-visible:text-secondaryDark;
 
-    ul {
-      @apply flex;
-      @apply w-0;
-    }
-
-    li {
+    .tab-info {
       @apply inline-flex;
-      @apply outline-none;
-      @apply border-none;
+      @apply items-center;
+      @apply justify-center;
+      @apply w-5;
+      @apply h-4;
+      @apply ml-2;
+      @apply text-8px;
+      @apply border border-divider;
 
-      a {
-        @apply flex;
-        @apply items-center;
-        @apply justify-center;
-        @apply py-2 px-4;
-        @apply text-secondaryLight text-sm;
-        @apply rounded-lg;
-        @apply cursor-pointer;
-        @apply transition-colors;
-        @apply ease-in-out;
-        @apply duration-150;
+      @apply rounded;
+      @apply text-secondaryLight;
+    }
 
-        .material-icons {
-          @apply m-4;
-        }
+    &::after {
+      @apply absolute;
+      @apply left-4;
+      @apply right-4;
+      @apply bottom-0;
+      @apply bg-transparent;
+      @apply z-2;
+      @apply h-0.5;
 
-        &:hover {
-          @apply text-secondary;
-        }
+      content: "";
+    }
+
+    .material-icons {
+      @apply mr-4;
+    }
+
+    &:focus::after {
+      @apply bg-divider;
+    }
+
+    &.active {
+      @apply text-secondaryDark;
+
+      .tab-info {
+        @apply text-secondary;
+        @apply border-dividerDark;
       }
 
-      &:focus a {
-        @apply text-secondary;
-      }
-
-      &.is-active a {
-        @apply bg-divider;
-        @apply text-secondary;
+      &::after {
+        @apply bg-accent;
       }
     }
-  }
-}
-
-@media (max-width: 768px) {
-  ul,
-  ol {
-    @apply flex-row flex-nowrap;
   }
 }
 </style>

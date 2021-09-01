@@ -1,25 +1,42 @@
 <template>
   <div class="flex flex-col">
-    <label for="log">{{ title }}</label>
+    <div
+      class="
+        bg-primary
+        border-b border-dividerLight
+        flex flex-1
+        pl-4
+        top-0
+        z-10
+        sticky
+        items-center
+        justify-between
+      "
+    >
+      <label for="log" class="font-semibold text-secondaryLight py-2">
+        {{ title }}
+      </label>
+    </div>
     <div ref="log" name="log" class="realtime-log">
-      <span v-if="log">
+      <span v-if="log" class="space-y-2">
         <span
-          v-for="(logEntry, index) in log"
-          :key="index"
-          :style="{ color: logEntry.color }"
-          >@ {{ logEntry.ts }}{{ getSourcePrefix(logEntry.source)
-          }}{{ logEntry.payload }}</span
+          v-for="(entry, index) in log"
+          :key="`entry-${index}`"
+          :style="{ color: entry.color }"
+          >{{ entry.ts }}{{ getSourcePrefix(entry.source)
+          }}{{ entry.payload }}</span
         >
       </span>
-      <span v-else>{{ $t("waiting_for_connection") }}</span>
+      <span v-else>{{ $t("response.waiting_for_connection") }}</span>
     </div>
   </div>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
 import { getSourcePrefix } from "~/helpers/utils/string"
 
-export default {
+export default defineComponent({
   props: {
     log: { type: Array, default: () => [] },
     title: {
@@ -37,13 +54,13 @@ export default {
   methods: {
     getSourcePrefix,
   },
-}
+})
 </script>
 
 <style scoped lang="scss">
 .realtime-log {
   @apply p-4;
-  @apply bg-primaryDark;
+  @apply bg-transparent;
   @apply text-secondary;
   @apply overflow-auto;
 
@@ -51,7 +68,6 @@ export default {
 
   &,
   span {
-    @apply font-mono;
     @apply select-text;
   }
 

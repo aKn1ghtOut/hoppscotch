@@ -1,43 +1,59 @@
 <template>
-  <div>
-    <div class="row-wrapper">
-      <div>
-        <button class="icon button" @click="$emit('edit-environment')">
-          <i class="material-icons">layers</i>
-          <span>{{ environment.name }}</span>
-        </button>
-      </div>
-      <v-popover>
-        <button v-tooltip.left="$t('more')" class="tooltip-target icon button">
-          <i class="material-icons">more_vert</i>
-        </button>
-        <template #popover>
-          <div>
-            <button
-              v-close-popover
-              class="icon button"
-              @click="$emit('edit-environment')"
-            >
-              <i class="material-icons">create</i>
-              <span>{{ $t("edit") }}</span>
-            </button>
-          </div>
-          <div>
-            <button
-              v-close-popover
-              class="icon button"
-              @click="confirmRemove = true"
-            >
-              <i class="material-icons">delete</i>
-              <span>{{ $t("delete") }}</span>
-            </button>
-          </div>
+  <div class="flex items-center group">
+    <span
+      class="cursor-pointer flex px-4 justify-center items-center"
+      @click="$emit('edit-environment')"
+    >
+      <SmartIcon class="svg-icons" name="layers" />
+    </span>
+    <span
+      class="
+        cursor-pointer
+        flex flex-1
+        min-w-0
+        py-2
+        pr-2
+        transition
+        group-hover:text-secondaryDark
+      "
+      @click="$emit('edit-environment')"
+    >
+      <span class="truncate">
+        {{ environment.name }}
+      </span>
+    </span>
+    <span>
+      <tippy ref="options" interactive trigger="click" theme="popover" arrow>
+        <template #trigger>
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            :title="$t('action.more')"
+            svg="more-vertical"
+          />
         </template>
-      </v-popover>
-    </div>
+        <SmartItem
+          svg="edit"
+          :label="$t('action.edit')"
+          @click.native="
+            $emit('edit-environment')
+            $refs.options.tippy().hide()
+          "
+        />
+        <SmartItem
+          v-if="!(environmentIndex === 'Global')"
+          svg="trash-2"
+          color="red"
+          :label="$t('action.delete')"
+          @click.native="
+            confirmRemove = true
+            $refs.options.tippy().hide()
+          "
+        />
+      </tippy>
+    </span>
     <SmartConfirmModal
       :show="confirmRemove"
-      :title="$t('are_you_sure_remove_environment')"
+      :title="$t('confirm.remove_environment')"
       @hide-modal="confirmRemove = false"
       @resolve="removeEnvironment"
     />
@@ -45,13 +61,16 @@
 </template>
 
 <script lang="ts">
-import Vue from "vue"
+import { defineComponent, PropType } from "@nuxtjs/composition-api"
 import { deleteEnvironment } from "~/newstore/environments"
 
-export default Vue.extend({
+export default defineComponent({
   props: {
     environment: { type: Object, default: () => {} },
-    environmentIndex: { type: Number, default: null },
+    environmentIndex: {
+      type: [Number, String] as PropType<number | "Global">,
+      default: null,
+    },
   },
   data() {
     return {
@@ -60,8 +79,9 @@ export default Vue.extend({
   },
   methods: {
     removeEnvironment() {
-      deleteEnvironment(this.environmentIndex)
-      this.$toast.error(this.$t("deleted").toString(), {
+      if (this.environmentIndex !== "Global")
+        deleteEnvironment(this.environmentIndex)
+      this.$toast.success(this.$t("state.deleted").toString(), {
         icon: "delete",
       })
     },

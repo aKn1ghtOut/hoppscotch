@@ -1,60 +1,103 @@
 <template>
-  <div>
-    <AppSection label="request">
-      <ul>
-        <li>
-          <label for="server">{{ $t("server") }}</label>
-          <input
-            id="server"
-            v-model="server"
-            type="url"
-            :class="{ error: !serverValid }"
-            class="input md:rounded-bl-lg"
-            :placeholder="$t('url')"
-            @keyup.enter="serverValid ? toggleSSEConnection() : null"
-          />
-        </li>
-        <div>
-          <li>
-            <label for="start" class="hide-on-small-screen">&nbsp;</label>
-            <button
-              id="start"
-              :disabled="!serverValid"
-              name="start"
-              class="button rounded-b-lg md:rounded-bl-none md:rounded-br-lg"
-              @click="toggleSSEConnection"
+  <Splitpanes class="smart-splitter" :dbl-click-splitter="false" horizontal>
+    <Pane class="hide-scrollbar !overflow-auto">
+      <div class="bg-primary flex p-4 top-0 z-10 sticky">
+        <div class="space-x-2 flex-1 inline-flex">
+          <div class="flex flex-1">
+            <input
+              id="server"
+              v-model="server"
+              v-focus
+              type="url"
+              autocomplete="off"
+              :class="{ error: !serverValid }"
+              class="
+                bg-primaryLight
+                border border-divider
+                rounded-l
+                flex flex-1
+                text-secondaryDark
+                w-full
+                py-2
+                px-4
+                hover:border-dividerDark
+                focus-visible:bg-transparent focus-visible:border-dividerDark
+              "
+              :placeholder="$t('sse.url')"
+              @keyup.enter="serverValid ? toggleSSEConnection() : null"
+            />
+            <label
+              for="url"
+              class="
+                bg-primaryLight
+                border-t border-b border-divider
+                font-semibold
+                text-secondaryLight
+                py-2
+                px-4
+                truncate
+              "
             >
-              {{ !connectionSSEState ? $t("start") : $t("stop") }}
-              <span>
-                <i class="material-icons">
-                  {{ !connectionSSEState ? "sync" : "sync_disabled" }}
-                </i>
-              </span>
-            </button>
-          </li>
+              {{ $t("sse.event_type") }}
+            </label>
+            <input
+              id="event-type"
+              v-model="eventType"
+              class="
+                bg-primaryLight
+                border border-divider
+                rounded-r
+                flex flex-1
+                text-secondaryDark
+                w-full
+                py-2
+                px-4
+                hover:border-dividerDark
+                focus-visible:bg-transparent focus-visible:border-dividerDark
+              "
+              spellcheck="false"
+            />
+          </div>
+          <ButtonPrimary
+            id="start"
+            :disabled="!serverValid"
+            name="start"
+            class="w-32"
+            :label="
+              !connectionSSEState ? $t('action.start') : $t('action.stop')
+            "
+            :loading="connectingState"
+            @click.native="toggleSSEConnection"
+          />
         </div>
-      </ul>
-    </AppSection>
-
-    <AppSection label="response">
-      <ul>
-        <li>
-          <RealtimeLog :title="$t('events')" :log="events.log" />
-          <div id="result"></div>
-        </li>
-      </ul>
-    </AppSection>
-  </div>
+      </div>
+    </Pane>
+    <Pane class="hide-scrollbar !overflow-auto">
+      <AppSection label="response">
+        <ul>
+          <li>
+            <RealtimeLog :title="$t('sse.log')" :log="events.log" />
+            <div id="result"></div>
+          </li>
+        </ul>
+      </AppSection>
+    </Pane>
+  </Splitpanes>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
+import { Splitpanes, Pane } from "splitpanes"
+import "splitpanes/dist/splitpanes.css"
 import { logHoppRequestRunToAnalytics } from "~/helpers/fb/analytics"
 import debounce from "~/helpers/utils/debounce"
 
-export default {
+export default defineComponent({
+  components: { Splitpanes, Pane },
   data() {
     return {
       connectionSSEState: false,
+      connectingState: false,
       server: "https://express-eventsource.herokuapp.com/events",
       isUrlValid: true,
       sse: null,
@@ -62,6 +105,7 @@ export default {
         log: null,
         input: "",
       },
+      eventType: "data",
     }
   },
   computed: {
@@ -97,9 +141,10 @@ export default {
       else return this.stop()
     },
     start() {
+      this.connectingState = true
       this.events.log = [
         {
-          payload: this.$t("connecting_to", { name: this.server }),
+          payload: this.$t("state.connecting_to", { name: this.server }),
           source: "info",
           color: "var(--accent-color)",
         },
@@ -108,16 +153,17 @@ export default {
         try {
           this.sse = new EventSource(this.server)
           this.sse.onopen = () => {
+            this.connectingState = false
             this.connectionSSEState = true
             this.events.log = [
               {
-                payload: this.$t("connected_to", { name: this.server }),
+                payload: this.$t("state.connected_to", { name: this.server }),
                 source: "info",
                 color: "var(--accent-color)",
                 ts: new Date().toLocaleTimeString(),
               },
             ]
-            this.$toast.success(this.$t("connected"), {
+            this.$toast.success(this.$t("state.connected"), {
               icon: "sync",
             })
           }
@@ -127,32 +173,34 @@ export default {
           this.sse.onclose = () => {
             this.connectionSSEState = false
             this.events.log.push({
-              payload: this.$t("disconnected_from", { name: this.server }),
+              payload: this.$t("state.disconnected_from", {
+                name: this.server,
+              }),
               source: "info",
               color: "#ff5555",
               ts: new Date().toLocaleTimeString(),
             })
-            this.$toast.error(this.$t("disconnected"), {
+            this.$toast.error(this.$t("state.disconnected"), {
               icon: "sync_disabled",
             })
           }
-          this.sse.onmessage = ({ data }) => {
+          this.sse.addEventListener(this.eventType, ({ data }) => {
             this.events.log.push({
               payload: data,
               source: "server",
               ts: new Date().toLocaleTimeString(),
             })
-          }
-        } catch (ex) {
-          this.handleSSEError(ex)
-          this.$toast.error(this.$t("something_went_wrong"), {
-            icon: "error",
+          })
+        } catch (e) {
+          this.handleSSEError(e)
+          this.$toast.error(this.$t("error.something_went_wrong"), {
+            icon: "error_outline",
           })
         }
       } else {
         this.events.log = [
           {
-            payload: this.$t("browser_support_sse"),
+            payload: this.$t("error.browser_support_sse"),
             source: "info",
             color: "#ff5555",
             ts: new Date().toLocaleTimeString(),
@@ -161,14 +209,14 @@ export default {
       }
 
       logHoppRequestRunToAnalytics({
-        platform: "mqtt",
+        platform: "sse",
       })
     },
     handleSSEError(error) {
       this.stop()
       this.connectionSSEState = false
       this.events.log.push({
-        payload: this.$t("error_occurred"),
+        payload: this.$t("error.something_went_wrong"),
         source: "info",
         color: "#ff5555",
         ts: new Date().toLocaleTimeString(),
@@ -182,9 +230,9 @@ export default {
         })
     },
     stop() {
-      this.sse.onclose()
       this.sse.close()
+      this.sse.onclose()
     },
   },
-}
+})
 </script>

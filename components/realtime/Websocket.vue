@@ -1,171 +1,221 @@
 <template>
-  <div>
-    <AppSection label="request">
-      <ul>
-        <li>
-          <label for="websocket-url">{{ $t("url") }}</label>
-          <input
-            id="websocket-url"
-            v-model="url"
-            class="input"
-            type="url"
-            spellcheck="false"
-            :class="{ error: !urlValid }"
-            :placeholder="$t('url')"
-            @keyup.enter="urlValid ? toggleConnection() : null"
-          />
-        </li>
-        <div>
-          <li>
-            <label for="connect" class="hide-on-small-screen">&nbsp;</label>
-            <button
-              id="connect"
-              :disabled="!urlValid"
-              class="button"
-              name="connect"
-              @click="toggleConnection"
-            >
-              {{ !connectionState ? $t("connect") : $t("disconnect") }}
-              <span>
-                <i class="material-icons">
-                  {{ !connectionState ? "sync" : "sync_disabled" }}
-                </i>
-              </span>
-            </button>
-          </li>
-        </div>
-      </ul>
-      <ul>
-        <li>
-          <div class="row-wrapper">
-            <label>{{ $t("protocols") }}</label>
-          </div>
-        </li>
-      </ul>
-      <ul
-        v-for="(protocol, index) of protocols"
-        :key="`protocol-${index}`"
-        :class="{ 'border-t': index == 0 }"
-        class="
-          border-b border-dashed
-          divide-y
-          md:divide-x
-          border-divider
-          divide-dashed divide-divider
-          md:divide-y-0
-        "
-      >
-        <li>
-          <input
-            v-model="protocol.value"
-            class="input"
-            :placeholder="$t('protocol_count', { count: index + 1 })"
-            name="message"
-            type="text"
-          />
-        </li>
-        <div>
-          <li>
-            <button
-              v-tooltip.bottom="{
-                content: protocol.hasOwnProperty('active')
-                  ? protocol.active
-                    ? $t('turn_off')
-                    : $t('turn_on')
-                  : $t('turn_off'),
-              }"
-              class="icon button"
-              @click="
-                protocol.active = protocol.hasOwnProperty('active')
-                  ? !protocol.active
-                  : false
+  <Splitpanes class="smart-splitter" :dbl-click-splitter="false" vertical>
+    <Pane class="hide-scrollbar !overflow-auto">
+      <Splitpanes class="smart-splitter" :dbl-click-splitter="false" horizontal>
+        <Pane class="hide-scrollbar !overflow-auto">
+          <AppSection label="request">
+            <div class="bg-primary flex p-4 top-0 z-10 sticky">
+              <div class="space-x-2 flex-1 inline-flex">
+                <input
+                  id="websocket-url"
+                  v-model="url"
+                  v-focus
+                  class="
+                    bg-primaryLight
+                    border border-divider
+                    rounded
+                    text-secondaryDark
+                    w-full
+                    py-2
+                    px-4
+                    hover:border-dividerDark
+                    focus-visible:bg-transparent
+                    focus-visible:border-dividerDark
+                  "
+                  type="url"
+                  autocomplete="off"
+                  spellcheck="false"
+                  :class="{ error: !urlValid }"
+                  :placeholder="$t('websocket.url')"
+                  @keyup.enter="urlValid ? toggleConnection() : null"
+                />
+                <ButtonPrimary
+                  id="connect"
+                  :disabled="!urlValid"
+                  class="w-32"
+                  name="connect"
+                  :label="
+                    !connectionState
+                      ? $t('action.connect')
+                      : $t('action.disconnect')
+                  "
+                  :loading="connectingState"
+                  @click.native="toggleConnection"
+                />
+              </div>
+            </div>
+            <div
+              class="
+                bg-primary
+                border-b border-dividerLight
+                flex flex-1
+                top-upperPrimaryStickyFold
+                pl-4
+                z-10
+                sticky
+                items-center
+                justify-between
               "
             >
-              <i class="material-icons">
-                {{
-                  protocol.hasOwnProperty("active")
-                    ? protocol.active
-                      ? "check_box"
-                      : "check_box_outline_blank"
-                    : "check_box"
-                }}
-              </i>
-            </button>
-          </li>
-        </div>
-        <div>
-          <li>
-            <button
-              v-tooltip.bottom="$t('delete')"
-              class="icon button"
-              @click="deleteProtocol({ index })"
+              <label class="font-semibold text-secondaryLight">
+                {{ $t("websocket.protocols") }}
+              </label>
+              <div class="flex">
+                <ButtonSecondary
+                  v-tippy="{ theme: 'tooltip' }"
+                  :title="$t('action.clear_all')"
+                  svg="trash-2"
+                  @click.native="clearContent"
+                />
+                <ButtonSecondary
+                  v-tippy="{ theme: 'tooltip' }"
+                  :title="$t('add.new')"
+                  svg="plus"
+                  @click.native="addProtocol"
+                />
+              </div>
+            </div>
+            <div
+              v-for="(protocol, index) of protocols"
+              :key="`protocol-${index}`"
+              class="
+                divide-x divide-dividerLight
+                border-b border-dividerLight
+                flex
+              "
             >
-              <i class="material-icons">delete</i>
-            </button>
-          </li>
+              <input
+                v-model="protocol.value"
+                class="bg-transparent flex flex-1 py-2 px-4"
+                :placeholder="$t('count.protocol', { count: index + 1 })"
+                name="message"
+                type="text"
+                autocomplete="off"
+              />
+              <span>
+                <ButtonSecondary
+                  v-tippy="{ theme: 'tooltip' }"
+                  :title="
+                    protocol.hasOwnProperty('active')
+                      ? protocol.active
+                        ? $t('action.turn_off')
+                        : $t('action.turn_on')
+                      : $t('action.turn_off')
+                  "
+                  :svg="
+                    protocol.hasOwnProperty('active')
+                      ? protocol.active
+                        ? 'check-circle'
+                        : 'circle'
+                      : 'check-circle'
+                  "
+                  color="green"
+                  @click.native="
+                    protocol.active = protocol.hasOwnProperty('active')
+                      ? !protocol.active
+                      : false
+                  "
+                />
+              </span>
+              <span>
+                <ButtonSecondary
+                  v-tippy="{ theme: 'tooltip' }"
+                  :title="$t('action.remove')"
+                  svg="trash"
+                  color="red"
+                  @click.native="deleteProtocol({ index })"
+                />
+              </span>
+            </div>
+            <div
+              v-if="protocols.length === 0"
+              class="
+                flex flex-col
+                text-secondaryLight
+                p-4
+                items-center
+                justify-center
+              "
+            >
+              <i class="opacity-75 pb-2 material-icons">topic</i>
+              <span class="text-center">
+                {{ $t("empty.protocols") }}
+              </span>
+            </div>
+          </AppSection>
+        </Pane>
+        <Pane class="hide-scrollbar !overflow-auto">
+          <AppSection label="response">
+            <RealtimeLog
+              :title="$t('websocket.log')"
+              :log="communication.log"
+            />
+          </AppSection>
+        </Pane>
+      </Splitpanes>
+    </Pane>
+    <Pane
+      v-if="RIGHT_SIDEBAR"
+      max-size="35"
+      size="25"
+      min-size="20"
+      class="hide-scrollbar !overflow-auto"
+    >
+      <AppSection label="messages">
+        <div class="flex flex-col flex-1 p-4 inline-flex">
+          <label
+            for="websocket-message"
+            class="font-semibold text-secondaryLight"
+          >
+            {{ $t("websocket.communication") }}
+          </label>
         </div>
-      </ul>
-      <ul>
-        <li>
-          <button class="icon button" @click="addProtocol">
-            <i class="material-icons">add</i>
-            <span>{{ $t("add_new") }}</span>
-          </button>
-        </li>
-      </ul>
-    </AppSection>
-
-    <AppSection label="response">
-      <ul>
-        <li>
-          <RealtimeLog :title="$t('log')" :log="communication.log" />
-        </li>
-      </ul>
-      <ul>
-        <li>
-          <label for="websocket-message">{{ $t("message") }}</label>
+        <div class="flex space-x-2 px-4">
           <input
             id="websocket-message"
             v-model="communication.input"
             name="message"
             type="text"
-            :readonly="!connectionState"
-            class="input md:rounded-bl-lg"
+            autocomplete="off"
+            :disabled="!connectionState"
+            :placeholder="$t('websocket.message')"
+            class="input"
             @keyup.enter="connectionState ? sendMessage() : null"
             @keyup.up="connectionState ? walkHistory('up') : null"
             @keyup.down="connectionState ? walkHistory('down') : null"
           />
-        </li>
-        <div>
-          <li>
-            <label for="send" class="hide-on-small-screen">&nbsp;</label>
-            <button
-              id="send"
-              name="send"
-              :disabled="!connectionState"
-              class="button rounded-b-lg md:rounded-bl-none md:rounded-br-lg"
-              @click="sendMessage"
-            >
-              {{ $t("send") }}
-              <span>
-                <i class="material-icons">send</i>
-              </span>
-            </button>
-          </li>
+          <ButtonPrimary
+            id="send"
+            name="send"
+            :disabled="!connectionState"
+            :label="$t('action.send')"
+            @click.native="sendMessage"
+          />
         </div>
-      </ul>
-    </AppSection>
-  </div>
+      </AppSection>
+    </Pane>
+  </Splitpanes>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
+import { Splitpanes, Pane } from "splitpanes"
+import "splitpanes/dist/splitpanes.css"
 import { logHoppRequestRunToAnalytics } from "~/helpers/fb/analytics"
 import debounce from "~/helpers/utils/debounce"
+import { useSetting } from "~/newstore/settings"
 
-export default {
+export default defineComponent({
+  components: { Splitpanes, Pane },
+  setup() {
+    return {
+      RIGHT_SIDEBAR: useSetting("RIGHT_SIDEBAR"),
+    }
+  },
   data() {
     return {
       connectionState: false,
+      connectingState: false,
       url: "wss://echo.websocket.org",
       isUrlValid: true,
       socket: null,
@@ -210,6 +260,9 @@ export default {
     this.worker.terminate()
   },
   methods: {
+    clearContent() {
+      this.protocols = []
+    },
     debouncer: debounce(function () {
       this.worker.postMessage({ type: "ws", url: this.url })
     }, 1000),
@@ -225,24 +278,26 @@ export default {
     connect() {
       this.communication.log = [
         {
-          payload: this.$t("connecting_to", { name: this.url }),
+          payload: this.$t("state.connecting_to", { name: this.url }),
           source: "info",
           color: "var(--accent-color)",
         },
       ]
       try {
+        this.connectingState = true
         this.socket = new WebSocket(this.url, this.activeProtocols)
         this.socket.onopen = () => {
+          this.connectingState = false
           this.connectionState = true
           this.communication.log = [
             {
-              payload: this.$t("connected_to", { name: this.url }),
+              payload: this.$t("state.connected_to", { name: this.url }),
               source: "info",
               color: "var(--accent-color)",
               ts: new Date().toLocaleTimeString(),
             },
           ]
-          this.$toast.success(this.$t("connected"), {
+          this.$toast.success(this.$t("state.connected"), {
             icon: "sync",
           })
         }
@@ -252,12 +307,12 @@ export default {
         this.socket.onclose = () => {
           this.connectionState = false
           this.communication.log.push({
-            payload: this.$t("disconnected_from", { name: this.url }),
+            payload: this.$t("state.disconnected_from", { name: this.url }),
             source: "info",
             color: "#ff5555",
             ts: new Date().toLocaleTimeString(),
           })
-          this.$toast.error(this.$t("disconnected"), {
+          this.$toast.error(this.$t("state.disconnected"), {
             icon: "sync_disabled",
           })
         }
@@ -268,10 +323,10 @@ export default {
             ts: new Date().toLocaleTimeString(),
           })
         }
-      } catch (ex) {
-        this.handleError(ex)
-        this.$toast.error(this.$t("something_went_wrong"), {
-          icon: "error",
+      } catch (e) {
+        this.handleError(e)
+        this.$toast.error(this.$t("error.something_went_wrong"), {
+          icon: "error_outline",
         })
       }
 
@@ -282,13 +337,15 @@ export default {
     disconnect() {
       if (this.socket) {
         this.socket.close()
+        this.connectionState = false
+        this.connectingState = false
       }
     },
     handleError(error) {
       this.disconnect()
       this.connectionState = false
       this.communication.log.push({
-        payload: this.$t("error_occurred"),
+        payload: this.$t("error.something_went_wrong"),
         source: "info",
         color: "#ff5555",
         ts: new Date().toLocaleTimeString(),
@@ -353,10 +410,10 @@ export default {
     deleteProtocol({ index }) {
       const oldProtocols = this.protocols.slice()
       this.$delete(this.protocols, index)
-      this.$toast.error(this.$t("deleted"), {
+      this.$toast.success(this.$t("state.deleted"), {
         icon: "delete",
         action: {
-          text: this.$t("undo"),
+          text: this.$t("action.undo"),
           duration: 4000,
           onClick: (_, toastObject) => {
             this.protocols = oldProtocols
@@ -366,5 +423,5 @@ export default {
       })
     },
   },
-}
+})
 </script>

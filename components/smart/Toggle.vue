@@ -1,44 +1,52 @@
 <template>
-  <div class="inline-block cursor-pointer" @click="$emit('change')">
+  <div
+    class="cursor-pointer flex-nowrap inline-flex items-center justify-center"
+    @click="$emit('change')"
+  >
     <label ref="toggle" class="toggle" :class="{ on: on }">
       <span class="handle"></span>
     </label>
-    <label class="pl-0 align-middle cursor-pointer">
+    <label class="cursor-pointer pl-0 align-middle">
       <slot></slot>
     </label>
   </div>
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     on: {
       type: Boolean,
       default: false,
     },
   },
-}
+})
 </script>
 
 <style scoped lang="scss">
-$useBorder: false;
-$borderColor: var(--secondary-light-color);
-$activeColor: var(--accent-color);
-$inactiveColor: var(--secondary-light-color);
-$inactiveHandleColor: var(--primary-color);
-$activeHandleColor: var(--primary-color);
-$width: 32px;
-$height: 16px;
-$handleSpacing: 4px;
+$useBorder: true;
+$borderColor: var(--divider-color);
+$activeColor: var(--divider-color);
+$inactiveColor: var(--divider-color);
+$inactiveHandleColor: var(--secondary-light-color);
+$activeHandleColor: var(--accent-color);
+$width: 1.6rem;
+$height: 0.6rem;
+$indicatorHeight: 0.4rem;
+$indicatorWidth: 0.4rem;
+$handleSpacing: 0.1rem;
 $transition: all 0.2s ease-in-out;
 
 .toggle {
   @apply relative;
-  @apply inline-block;
-  @apply align-middle;
+  @apply flex;
+  @apply items-center;
+  @apply justify-center;
   @apply rounded-full;
   @apply p-0;
-  @apply m-4;
+  @apply mr-4;
   @apply cursor-pointer;
   @apply flex-shrink-0;
 
@@ -46,12 +54,12 @@ $transition: all 0.2s ease-in-out;
   height: $height;
   border: if($useBorder, 2px solid $borderColor, none);
   background-color: if($useBorder, transparent, $inactiveColor);
-  transition: $transition;
   box-sizing: initial;
 
   .handle {
     @apply absolute;
-    @apply inline-block;
+    @apply flex;
+    @apply flex-shrink-0;
     @apply inset-0;
     @apply rounded-full;
     @apply pointer-events-none;
@@ -59,12 +67,12 @@ $transition: all 0.2s ease-in-out;
     transition: $transition;
     margin: $handleSpacing;
     background-color: $inactiveHandleColor;
-    width: #{$height - ($handleSpacing * 2)};
-    height: #{$height - ($handleSpacing * 2)};
+    width: $indicatorWidth;
+    height: $indicatorHeight;
   }
 
   &.on {
-    background-color: $activeColor;
+    // background-color: $activeColor;
     border-color: $activeColor;
 
     .handle {

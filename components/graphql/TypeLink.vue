@@ -1,7 +1,6 @@
 <template>
   <span
-    :class="{ 'cursor-pointer': !isScalar }"
-    class="font-mono text-sm text-accent"
+    :class="isScalar ? 'text-secondaryLight' : 'cursor-pointer text-accent'"
     @click="jumpToType"
   >
     {{ typeString }}
@@ -9,9 +8,10 @@
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
 import { GraphQLScalarType } from "graphql"
 
-export default {
+export default defineComponent({
   props: {
     // eslint-disable-next-line vue/require-default-prop
     gqlType: null,
@@ -40,5 +40,5 @@ export default {
       return t
     },
   },
-}
+})
 </script>

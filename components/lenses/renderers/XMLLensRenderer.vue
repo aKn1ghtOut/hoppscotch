@@ -1,91 +1,86 @@
 <template>
   <div>
-    <div class="row-wrapper">
-      <label for="body">{{ $t("response_body") }}</label>
-      <div>
-        <button
-          v-if="response.body"
-          ref="ToggleExpandResponse"
-          v-tooltip="{
-            content: !expandResponse
-              ? $t('expand_response')
-              : $t('collapse_response'),
-          }"
-          class="icon button"
-          @click="ToggleExpandResponse"
-        >
-          <i class="material-icons">
-            {{ !expandResponse ? "unfold_more" : "unfold_less" }}
-          </i>
-        </button>
-        <button
+    <div
+      class="
+        bg-primary
+        border-b border-dividerLight
+        flex flex-1
+        top-lowerSecondaryStickyFold
+        pl-4
+        z-10
+        sticky
+        items-center
+        justify-between
+      "
+    >
+      <label class="font-semibold text-secondaryLight">
+        {{ $t("response.body") }}
+      </label>
+      <div class="flex">
+        <ButtonSecondary
           v-if="response.body"
           ref="downloadResponse"
-          v-tooltip="$t('download_file')"
-          class="icon button"
-          @click="downloadResponse"
-        >
-          <i class="material-icons">{{ downloadIcon }}</i>
-        </button>
-        <button
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.download_file')"
+          :svg="downloadIcon"
+          @click.native="downloadResponse"
+        />
+        <ButtonSecondary
           v-if="response.body"
           ref="copyResponse"
-          v-tooltip="$t('copy_response')"
-          class="icon button"
-          @click="copyResponse"
-        >
-          <i class="material-icons">{{ copyIcon }}</i>
-        </button>
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.copy')"
+          :svg="copyIcon"
+          @click.native="copyResponse"
+        />
       </div>
     </div>
-    <div id="response-details-wrapper">
+    <div class="relative">
       <SmartAceEditor
         :value="responseBodyText"
         :lang="'xml'"
         :options="{
-          maxLines: responseBodyMaxLines,
-          minLines: '16',
-          fontSize: '15px',
+          maxLines: Infinity,
+          minLines: 16,
           autoScrollEditorIntoView: true,
           readOnly: true,
           showPrintMargin: false,
           useWorker: false,
         }"
-        styles="rounded-b-lg"
+        styles="border-b border-dividerLight"
       />
     </div>
   </div>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
 import TextContentRendererMixin from "./mixins/TextContentRendererMixin"
+import { copyToClipboard } from "~/helpers/utils/clipboard"
 
-export default {
+export default defineComponent({
   mixins: [TextContentRendererMixin],
   props: {
     response: { type: Object, default: () => {} },
   },
   data() {
     return {
-      expandResponse: false,
-      responseBodyMaxLines: 16,
-      copyIcon: "content_copy",
-      downloadIcon: "save_alt",
+      copyIcon: "copy",
+      downloadIcon: "download",
     }
   },
   computed: {
     responseType() {
-      return (this.response.headers["content-type"] || "")
+      return (
+        this.response.headers.find(
+          (h) => h.key.toLowerCase() === "content-type"
+        ).value || ""
+      )
         .split(";")[0]
         .toLowerCase()
     },
   },
   methods: {
-    ToggleExpandResponse() {
-      this.expandResponse = !this.expandResponse
-      this.responseBodyMaxLines =
-        this.responseBodyMaxLines === Infinity ? 16 : Infinity
-    },
     downloadResponse() {
       const dataToWrite = this.responseBodyText
       const file = new Blob([dataToWrite], { type: this.responseType })
@@ -96,30 +91,24 @@ export default {
       a.download = `${url.split("/").pop().split("#")[0].split("?")[0]}`
       document.body.appendChild(a)
       a.click()
-      this.downloadIcon = "done"
-      this.$toast.success(this.$t("download_started"), {
-        icon: "done",
+      this.downloadIcon = "check"
+      this.$toast.success(this.$t("state.download_started"), {
+        icon: "downloading",
       })
       setTimeout(() => {
         document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-        this.downloadIcon = "save_alt"
+        URL.revokeObjectURL(url)
+        this.downloadIcon = "download"
       }, 1000)
     },
     copyResponse() {
-      const aux = document.createElement("textarea")
-      const copy = this.responseBodyText
-      aux.innerText = copy
-      document.body.appendChild(aux)
-      aux.select()
-      document.execCommand("copy")
-      document.body.removeChild(aux)
-      this.copyIcon = "done"
-      this.$toast.success(this.$t("copied_to_clipboard"), {
-        icon: "done",
+      copyToClipboard(this.responseBodyText)
+      this.copyIcon = "check"
+      this.$toast.success(this.$t("state.copied_to_clipboard"), {
+        icon: "content_paste",
       })
-      setTimeout(() => (this.copyIcon = "content_copy"), 1000)
+      setTimeout(() => (this.copyIcon = "copy"), 1000)
     },
   },
-}
+})
 </script>

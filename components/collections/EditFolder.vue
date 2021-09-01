@@ -1,39 +1,42 @@
 <template>
-  <SmartModal v-if="show" @close="$emit('hide-modal')">
-    <template #header>
-      <h3 class="heading">{{ $t("edit_folder") }}</h3>
-      <div>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
+  <SmartModal
+    v-if="show"
+    :title="$t('folder.edit')"
+    @close="$emit('hide-modal')"
+  >
+    <template #body>
+      <div class="flex flex-col px-2">
+        <input
+          id="selectLabelEditFolder"
+          v-model="name"
+          v-focus
+          class="input floating-input"
+          placeholder=" "
+          type="text"
+          autocomplete="off"
+          @keyup.enter="editFolder"
+        />
+        <label for="selectLabelEditFolder">
+          {{ $t("action.label") }}
+        </label>
       </div>
     </template>
-    <template #body>
-      <label for="selectLabelEditFolder">{{ $t("label") }}</label>
-      <input
-        id="selectLabelEditFolder"
-        v-model="name"
-        class="input"
-        type="text"
-        @keyup.enter="editFolder"
-      />
-    </template>
     <template #footer>
-      <span></span>
       <span>
-        <button class="icon button" @click="hideModal">
-          {{ $t("cancel") }}
-        </button>
-        <button class="icon button primary" @click="editFolder">
-          {{ $t("save") }}
-        </button>
+        <ButtonPrimary :label="$t('action.save')" @click.native="editFolder" />
+        <ButtonSecondary
+          :label="$t('action.cancel')"
+          @click.native="hideModal"
+        />
       </span>
     </template>
   </SmartModal>
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     show: Boolean,
   },
@@ -44,6 +47,12 @@ export default {
   },
   methods: {
     editFolder() {
+      if (!this.name) {
+        this.$toast.error(this.$t("folder.invalid_name"), {
+          icon: "error_outline",
+        })
+        return
+      }
       this.$emit("submit", this.name)
       this.hideModal()
     },
@@ -52,5 +61,5 @@ export default {
       this.$emit("hide-modal")
     },
   },
-}
+})
 </script>

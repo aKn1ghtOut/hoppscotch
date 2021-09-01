@@ -1,13 +1,16 @@
 <template>
-  <div v-show="isActive">
+  <div v-show="active">
     <slot></slot>
   </div>
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     label: { type: String, default: null },
+    info: { type: String, default: null },
     icon: { type: String, default: null },
     id: { type: String, default: null, required: true },
     selected: {
@@ -18,18 +21,12 @@ export default {
 
   data() {
     return {
-      isActive: false,
+      active: false,
     }
   },
 
-  // computed: {
-  //   href() {
-  //     return `#${this.label.toLowerCase().replace(/ /g, "-")}`
-  //   },
-  // },
-
   mounted() {
-    this.isActive = this.selected
+    this.active = this.selected
   },
-}
+})
 </script>

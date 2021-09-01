@@ -1,157 +1,174 @@
 <template>
-  <div>
-    <div class="transition duration-150 ease-in-out row-wrapper">
-      <button class="icon button" @click="toggleShowChildren">
-        <i v-show="!showChildren && !isFiltered" class="material-icons"
-          >arrow_right</i
-        >
-        <i v-show="showChildren || isFiltered" class="material-icons"
-          >arrow_drop_down</i
-        >
-
-        <i v-if="isSelected" class="text-green-400 material-icons"
-          >check_circle</i
-        >
-
-        <i v-else class="material-icons">folder</i>
-        <span>{{ collection.title }}</span>
-      </button>
-      <div>
-        <button
+  <div class="flex flex-col">
+    <div class="flex items-center group">
+      <span
+        class="cursor-pointer flex px-4 justify-center items-center"
+        @click="toggleShowChildren()"
+      >
+        <SmartIcon
+          class="svg-icons"
+          :class="{ 'text-green-500': isSelected }"
+          :name="getCollectionIcon"
+        />
+      </span>
+      <span
+        class="
+          cursor-pointer
+          flex flex-1
+          min-w-0
+          py-2
+          pr-2
+          transition
+          group-hover:text-secondaryDark
+        "
+        @click="toggleShowChildren()"
+      >
+        <span class="truncate"> {{ collection.title }} </span>
+      </span>
+      <div class="flex">
+        <ButtonSecondary
           v-if="doc && !selected"
-          v-tooltip.left="$t('import')"
-          class="icon button"
-          @click="$emit('select-collection')"
-        >
-          <i class="material-icons">check_box_outline_blank</i>
-        </button>
-        <button
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('import.title')"
+          svg="circle"
+          color="green"
+          @click.native="$emit('select-collection')"
+        />
+        <ButtonSecondary
           v-if="doc && selected"
-          v-tooltip.left="$t('delete')"
-          class="icon button"
-          @click="$emit('unselect-collection')"
-        >
-          <i class="material-icons">check_box</i>
-        </button>
-        <v-popover>
-          <button
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.remove')"
+          svg="check-circle"
+          color="green"
+          @click.native="$emit('unselect-collection')"
+        />
+        <ButtonSecondary
+          v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
+          v-tippy="{ theme: 'tooltip' }"
+          svg="folder-plus"
+          :title="$t('folder.new')"
+          class="hidden group-hover:inline-flex"
+          @click.native="
+            $emit('add-folder', {
+              folder: collection,
+              path: `${collectionIndex}`,
+            })
+          "
+        />
+        <span>
+          <tippy
             v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
-            v-tooltip.left="$t('more')"
-            class="tooltip-target icon button"
+            ref="options"
+            interactive
+            trigger="click"
+            theme="popover"
+            arrow
           >
-            <i class="material-icons">more_vert</i>
-          </button>
-          <template #popover>
-            <div>
-              <button
-                v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
-                v-close-popover
-                class="icon button"
-                @click="
-                  $emit('add-folder', {
-                    folder: collection,
-                    path: `${collectionIndex}`,
-                  })
-                "
-              >
-                <i class="material-icons">create_new_folder</i>
-                <span>{{ $t("new_folder") }}</span>
-              </button>
-            </div>
-            <div>
-              <button
-                v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
-                v-close-popover
-                class="icon button"
-                @click="$emit('edit-collection')"
-              >
-                <i class="material-icons">create</i>
-                <span>{{ $t("edit") }}</span>
-              </button>
-            </div>
-            <div>
-              <button
-                v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
-                v-close-popover
-                class="icon button"
-                @click="confirmRemove = true"
-              >
-                <i class="material-icons">delete</i>
-                <span>{{ $t("delete") }}</span>
-              </button>
-            </div>
-          </template>
-        </v-popover>
+            <template #trigger>
+              <ButtonSecondary
+                v-tippy="{ theme: 'tooltip' }"
+                :title="$t('action.more')"
+                svg="more-vertical"
+              />
+            </template>
+            <SmartItem
+              v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
+              svg="folder-plus"
+              :label="$t('folder.new')"
+              @click.native="
+                $emit('add-folder', {
+                  folder: collection,
+                  path: `${collectionIndex}`,
+                })
+                $refs.options.tippy().hide()
+              "
+            />
+            <SmartItem
+              v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
+              svg="edit"
+              :label="$t('action.edit')"
+              @click.native="
+                $emit('edit-collection')
+                $refs.options.tippy().hide()
+              "
+            />
+            <SmartItem
+              v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
+              svg="trash-2"
+              color="red"
+              :label="$t('action.delete')"
+              @click.native="
+                confirmRemove = true
+                $refs.options.tippy().hide()
+              "
+            />
+          </tippy>
+        </span>
       </div>
     </div>
-    <div v-show="showChildren || isFiltered">
-      <ul class="flex-col">
-        <li
-          v-for="(folder, index) in collection.children"
-          :key="folder.title"
-          class="ml-8 border-l border-divider"
-        >
-          <CollectionsTeamsFolder
-            :folder="folder"
-            :folder-index="index"
-            :folder-path="`${collectionIndex}/${index}`"
-            :collection-index="collectionIndex"
-            :doc="doc"
-            :save-request="saveRequest"
-            :collections-type="collectionsType"
-            :is-filtered="isFiltered"
-            :picked="picked"
-            @add-folder="$emit('add-folder', $event)"
-            @edit-folder="$emit('edit-folder', $event)"
-            @edit-request="$emit('edit-request', $event)"
-            @select="$emit('select', $event)"
-            @expand-collection="expandCollection"
-            @remove-request="removeRequest"
-          />
-        </li>
-      </ul>
-      <ul class="flex-col">
-        <li
-          v-for="(request, index) in collection.requests"
-          :key="index"
-          class="ml-8 border-l border-divider"
-        >
-          <CollectionsTeamsRequest
-            :request="request.request"
-            :collection-index="collectionIndex"
-            :folder-index="-1"
-            :folder-name="collection.name"
-            :request-index="request.id"
-            :doc="doc"
-            :save-request="saveRequest"
-            :collections-type="collectionsType"
-            :picked="picked"
-            @edit-request="editRequest($event)"
-            @select="$emit('select', $event)"
-            @remove-request="removeRequest"
-          />
-        </li>
-      </ul>
-      <ul>
-        <li
-          v-if="
-            (collection.children == undefined ||
-              collection.children.length === 0) &&
-            (collection.requests == undefined ||
-              collection.requests.length === 0)
-          "
-          class="flex ml-8 border-l border-divider"
-        >
-          <p class="info">
-            <i class="material-icons">not_interested</i>
-            {{ $t("collection_empty") }}
-          </p>
-        </li>
-      </ul>
+    <div v-if="showChildren || isFiltered">
+      <CollectionsTeamsFolder
+        v-for="(folder, index) in collection.children"
+        :key="`folder-${index}`"
+        class="border-l border-dividerLight ml-6"
+        :folder="folder"
+        :folder-index="index"
+        :folder-path="`${collectionIndex}/${index}`"
+        :collection-index="collectionIndex"
+        :doc="doc"
+        :save-request="saveRequest"
+        :collections-type="collectionsType"
+        :is-filtered="isFiltered"
+        :picked="picked"
+        @add-folder="$emit('add-folder', $event)"
+        @edit-folder="$emit('edit-folder', $event)"
+        @edit-request="$emit('edit-request', $event)"
+        @select="$emit('select', $event)"
+        @expand-collection="expandCollection"
+        @remove-request="removeRequest"
+      />
+      <CollectionsTeamsRequest
+        v-for="(request, index) in collection.requests"
+        :key="`request-${index}`"
+        class="border-l border-dividerLight ml-6"
+        :request="request.request"
+        :collection-index="collectionIndex"
+        :folder-index="-1"
+        :folder-name="collection.name"
+        :request-index="request.id"
+        :doc="doc"
+        :save-request="saveRequest"
+        :collections-type="collectionsType"
+        :picked="picked"
+        @edit-request="editRequest($event)"
+        @select="$emit('select', $event)"
+        @remove-request="removeRequest"
+      />
+      <div
+        v-if="
+          (collection.children == undefined ||
+            collection.children.length === 0) &&
+          (collection.requests == undefined || collection.requests.length === 0)
+        "
+        class="
+          border-l border-dividerLight
+          flex flex-col
+          text-secondaryLight
+          ml-6
+          p-4
+          items-center
+          justify-center
+        "
+      >
+        <i class="opacity-75 pb-2 material-icons">folder_open</i>
+        <span class="text-center">
+          {{ $t("empty.collection") }}
+        </span>
+      </div>
     </div>
     <SmartConfirmModal
       :show="confirmRemove"
-      :title="$t('are_you_sure_remove_collection')"
+      :title="$t('confirm.remove_collection')"
       @hide-modal="confirmRemove = false"
       @resolve="removeCollection"
     />
@@ -159,7 +176,9 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     collectionIndex: { type: Number, default: null },
     collection: { type: Object, default: () => {} },
@@ -173,7 +192,6 @@ export default {
   data() {
     return {
       showChildren: false,
-      dragging: false,
       selectedFolder: {},
       confirmRemove: false,
       prevCursor: "",
@@ -188,6 +206,12 @@ export default {
         this.picked.pickedType === "teams-collection" &&
         this.picked.collectionID === this.collection.id
       )
+    },
+    getCollectionIcon() {
+      if (this.isSelected) return "check-circle"
+      else if (!this.showChildren && !this.isFiltered) return "folder"
+      else if (this.showChildren || this.isFiltered) return "folder-minus"
+      else return "folder"
     },
   },
   methods: {
@@ -219,7 +243,6 @@ export default {
         collectionIndex: this.collectionIndex,
         collectionID: this.collection.id,
       })
-      this.confirmRemove = false
     },
     expandCollection(collectionID) {
       this.$emit("expand-collection", collectionID)
@@ -232,5 +255,5 @@ export default {
       })
     },
   },
-}
+})
 </script>

@@ -1,43 +1,98 @@
 <template>
-  <transition name="modal" appear @leave="onTransitionLeaveStart">
+  <transition name="fade" appear @leave="onTransitionLeaveStart">
     <div
       ref="modal"
-      class="modal-backdrop"
-      @touchstart="onBackdropMouseDown"
-      @touchend="onBackdropMouseUp"
-      @mouseup="onBackdropMouseUp"
-      @mousedown="onBackdropMouseDown"
+      class="inset-0 transition z-10 z-50 fixed hide-scrollbar overflow-y-auto"
     >
-      <div class="modal-wrapper">
-        <div class="modal-container">
-          <div class="modal-header">
-            <div class="row-wrapper">
-              <slot name="header"></slot>
+      <div
+        class="flex min-h-screen text-center items-end justify-center sm:block"
+      >
+        <transition name="fade" appear>
+          <div
+            class="bg-primaryDark opacity-90 inset-0 transition fixed"
+            @touchstart="!dialog ? close() : null"
+            @touchend="!dialog ? close() : null"
+            @mouseup="!dialog ? close() : null"
+            @mousedown="!dialog ? close() : null"
+          ></div>
+        </transition>
+        <span
+          v-if="placement === 'center'"
+          class="hidden sm:h-screen sm:inline-block sm:align-middle"
+          aria-hidden="true"
+          >&#8203;</span
+        >
+        <transition
+          appear
+          enter-active-class="transition"
+          enter-class="translate-y-4 scale-95"
+          enter-to-class="translate-y-0 scale-100"
+          leave-active-class="transition"
+          leave-class="translate-y-0 scale-100"
+          leave-to-class="translate-y-4 scale-95"
+        >
+          <div
+            class="
+              bg-primary
+              shadow-lg
+              text-left
+              w-full
+              transform
+              transition-all
+              inline-block
+              align-bottom
+              overflow-hidden
+              sm:max-w-md sm:align-middle
+              md:rounded-lg
+            "
+            :class="[
+              { 'mt-24 md:mb-8': placement === 'top' },
+              { 'p-4': !fullWidth },
+            ]"
+          >
+            <div
+              v-if="title"
+              class="flex mb-4 pl-2 items-center justify-between"
+            >
+              <h3 class="heading">{{ title }}</h3>
+              <span class="flex">
+                <slot name="actions"></slot>
+                <ButtonSecondary
+                  v-if="dimissible"
+                  class="rounded"
+                  svg="x"
+                  @click.native="close"
+                />
+              </span>
             </div>
-          </div>
-          <div class="modal-body">
-            <div class="flex flex-col">
+            <div
+              class="flex flex-col max-h-md overflow-y-auto hide-scrollbar"
+              :class="{ 'py-2': !fullWidth }"
+            >
               <slot name="body"></slot>
-              <!-- <div class="top fade"></div>
-            <div class="bottom fade"></div> -->
             </div>
-          </div>
-          <div v-if="hasFooterSlot" class="modal-footer">
-            <div class="row-wrapper">
+            <div
+              v-if="hasFooterSlot"
+              class="flex flex-1 mt-4 p-2 items-center justify-between"
+            >
               <slot name="footer"></slot>
             </div>
           </div>
-        </div>
+        </transition>
       </div>
     </div>
   </transition>
 </template>
 
-<script>
+<script lang="ts">
+import { defineComponent } from "@nuxtjs/composition-api"
+import { useKeybindingDisabler } from "~/helpers/keybindings"
+
 const PORTAL_DOM_ID = "hoppscotch-modal-portal"
 
+// Why ?
 const stack = (() => {
-  const stack = []
+  const stack: number[] = []
   return {
     push: stack.push.bind(stack),
     pop: stack.pop.bind(stack),
@@ -45,31 +100,61 @@ const stack = (() => {
   }
 })()
 
-export default {
+export default defineComponent({
+  props: {
+    dialog: {
+      type: Boolean,
+      default: false,
+    },
+    title: {
+      type: String,
+      default: "",
+    },
+    dimissible: {
+      type: Boolean,
+      default: true,
+    },
+    placement: {
+      type: String,
+      default: "top",
+    },
+    fullWidth: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup() {
+    const { disableKeybindings, enableKeybindings } = useKeybindingDisabler()
+
+    return {
+      disableKeybindings,
+      enableKeybindings,
+    }
+  },
   data() {
     return {
       stackId: Math.random(),
-      shouldCloseOnBackdropClick: true,
-      // when transition doesn't fire on unmount, we should manually remove the modal from DOM
+      // when doesn't fire on unmount, we should manually remove the modal from DOM
       // (for example, when the parent component of this modal gets destroyed)
       shouldCleanupDomOnUnmount: true,
     }
   },
   computed: {
-    hasFooterSlot() {
+    hasFooterSlot(): boolean {
       return !!this.$slots.footer
     },
   },
   mounted() {
     const $portal = this.$getPortal()
-    $portal.appendChild(this.$refs.modal)
+    $portal.appendChild(this.$refs.modal as any)
     stack.push(this.stackId)
     document.addEventListener("keydown", this.onKeyDown)
+    this.disableKeybindings()
   },
   beforeDestroy() {
     const $modal = this.$refs.modal
     if (this.shouldCleanupDomOnUnmount && $modal) {
-      this.$getPortal().removeChild($modal)
+      this.$getPortal().removeChild($modal as any)
     }
     stack.pop()
     document.removeEventListener("keydown", this.onKeyDown)
@@ -77,30 +162,16 @@ export default {
   methods: {
     close() {
       this.$emit("close")
+      this.enableKeybindings()
     },
-    onBackdropMouseDown({ target }) {
-      this.shouldCloseOnBackdropClick =
-        !this.checkIfTargetInsideModalContent(target)
-    },
-    onBackdropMouseUp({ target }) {
-      if (
-        this.shouldCloseOnBackdropClick &&
-        !this.checkIfTargetInsideModalContent(target)
-      ) {
-        this.close()
-      }
-      this.shouldCloseOnBackdropClick = true
-    },
-    checkIfTargetInsideModalContent($target) {
-      return $target?.closest(".modal-container")
-    },
-    onKeyDown(e) {
+    onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape" && this.stackId === stack.peek()) {
         e.preventDefault()
         this.close()
       }
     },
     onTransitionLeaveStart() {
+      this.close()
       this.shouldCleanupDomOnUnmount = false
     },
     $getPortal() {
@@ -114,102 +185,5 @@ export default {
       return $el
     },
   },
-}
+})
 </script>
-
-<style scoped lang="scss">
-.modal-backdrop {
-  @apply fixed;
-  @apply inset-0;
-  @apply z-50;
-  @apply w-full;
-  @apply h-full;
-  @apply flex;
-  @apply items-center;
-  @apply justify-center;
-  @apply transition;
-  @apply ease-in-out;
-  @apply duration-150;
-
-  background-color: rgba(0, 0, 0, 0.64);
-}
-
-.modal-wrapper {
-  @apply flex flex-1;
-  @apply items-center;
-  @apply justify-center;
-}
-
-.modal-container {
-  @apply relative;
-  @apply flex flex-1 flex-col;
-  @apply m-2;
-  @apply transition;
-  @apply ease-in-out;
-  @apply duration-150;
-  @apply bg-primary;
-  @apply rounded-lg;
-  @apply shadow-2xl;
-  @apply border-4 border-tooltip;
-
-  max-height: calc(100vh - 128px);
-  max-width: 640px;
-}
-
-.modal-header {
-  @apply pl-2;
-}
-
-.modal-body {
-  @apply overflow-auto;
-}
-
-.modal-footer {
-  @apply p-2;
-}
-
-/*
-  * The following styles are auto-applied to elements with
-  * transition="modal" when their visibility is toggled
-  * by Vue.js.
-  *
-  * You can easily play with the modal transition by editing
-  * these styles.
-  */
-
-.modal-enter,
-.modal-leave-active {
-  @apply opacity-0;
-}
-
-.modal-enter .modal-container,
-.modal-leave-active .modal-container {
-  @apply transform;
-  @apply scale-90;
-  @apply transition;
-  @apply ease-in-out;
-  @apply duration-150;
-}
-
-// .fade {
-//   @apply absolute;
-//   @apply block;
-//   @apply transition;
-//   @apply ease-in-out;
-//   @apply duration-150;
-
-//   left: 16px;
-//   right: 20px;
-//   height: 32px;
-
-//   &.top {
-//     top: 56px;
-//     background: linear-gradient(to bottom, var(--primary-color), transparent);
-//   }
-
-//   &.bottom {
-//     bottom: 16px;
-//     background: linear-gradient(to top, var(--primary-color), transparent);
-//   }
-// }
-</style>

@@ -1,10 +1,18 @@
-import firebase from "firebase"
+import {
+  collection,
+  doc,
+  getFirestore,
+  onSnapshot,
+  setDoc,
+} from "firebase/firestore"
 import { currentUser$ } from "./auth"
 import {
   restCollections$,
   graphqlCollections$,
   setRESTCollections,
   setGraphqlCollections,
+  translateToNewRESTCollection,
+  translateToNewGQLCollection,
 } from "~/newstore/collections"
 import { settingsStore } from "~/newstore/settings"
 
@@ -46,13 +54,10 @@ export async function writeCollections(
   }
 
   try {
-    await firebase
-      .firestore()
-      .collection("users")
-      .doc(currentUser$.value.uid)
-      .collection(flag)
-      .doc("sync")
-      .set(cl)
+    await setDoc(
+      doc(getFirestore(), "users", currentUser$.value.uid, flag, "sync"),
+      cl
+    )
   } catch (e) {
     console.error("error updating", cl, e)
     throw e
@@ -95,12 +100,9 @@ export function initCollections() {
         graphqlSnapshotStop = null
       }
     } else {
-      restSnapshotStop = firebase
-        .firestore()
-        .collection("users")
-        .doc(user.uid)
-        .collection("collections")
-        .onSnapshot((collectionsRef) => {
+      restSnapshotStop = onSnapshot(
+        collection(getFirestore(), "users", user.uid, "collections"),
+        (collectionsRef) => {
           const collections: any[] = []
           collectionsRef.forEach((doc) => {
             const collection = doc.data()
@@ -113,18 +115,20 @@ export function initCollections() {
 
           // TODO: Wth is with collections[0]
           if (collections.length > 0) {
-            setRESTCollections(collections[0].collection)
+            setRESTCollections(
+              (collections[0].collection ?? []).map(
+                translateToNewRESTCollection
+              )
+            )
           }
 
           loadedRESTCollections = true
-        })
+        }
+      )
 
-      graphqlSnapshotStop = firebase
-        .firestore()
-        .collection("users")
-        .doc(user.uid)
-        .collection("collectionsGraphql")
-        .onSnapshot((collectionsRef) => {
+      graphqlSnapshotStop = onSnapshot(
+        collection(getFirestore(), "users", user.uid, "collectionsGraphql"),
+        (collectionsRef) => {
           const collections: any[] = []
           collectionsRef.forEach((doc) => {
             const collection = doc.data()
@@ -137,11 +141,14 @@ export function initCollections() {
 
           // TODO: Wth is with collections[0]
           if (collections.length > 0) {
-            setGraphqlCollections(collections[0].collection)
+            setGraphqlCollections(
+              (collections[0].collection ?? []).map(translateToNewGQLCollection)
+            )
           }
 
           loadedGraphqlCollections = true
-        })
+        }
+      )
     }
   })
 }

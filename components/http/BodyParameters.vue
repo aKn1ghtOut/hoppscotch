@@ -1,242 +1,300 @@
 <template>
-  <div>
-    <ul>
-      <li>
-        <div class="row-wrapper">
-          <label for="reqParamList">{{ $t("request_body") }}</label>
-          <div>
-            <button
-              v-tooltip.bottom="$t('clear')"
-              class="icon button"
-              @click="clearContent('bodyParams', $event)"
-            >
-              <i class="material-icons">clear_all</i>
-            </button>
-          </div>
-        </div>
-      </li>
-    </ul>
-    <ul
-      v-for="(param, index) in bodyParams"
-      :key="index"
+  <AppSection label="bodyParameters">
+    <div
       class="
-        border-b border-dashed
-        divide-y
-        md:divide-x
-        border-divider
-        divide-dashed divide-divider
-        md:divide-y-0
+        bg-primary
+        border-b border-dividerLight
+        flex flex-1
+        top-upperTertiaryStickyFold
+        pl-4
+        z-10
+        sticky
+        items-center
+        justify-between
       "
-      :class="{ 'border-t': index == 0 }"
     >
-      <li>
-        <input
-          class="input"
-          :placeholder="`key ${index + 1}`"
-          :name="`bparam ${index}`"
-          :value="param.key"
-          autofocus
-          @change="updateBodyParams($event, index, `setKeyBodyParams`)"
-          @keyup.prevent="setRouteQueryState"
+      <label class="font-semibold text-secondaryLight">
+        {{ $t("request.body") }}
+      </label>
+      <div class="flex">
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          to="https://docs.hoppscotch.io/features/body"
+          blank
+          :title="$t('app.wiki')"
+          svg="help-circle"
         />
-      </li>
-      <li>
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.clear_all')"
+          svg="trash-2"
+          @click.native="clearContent"
+        />
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('add.new')"
+          svg="plus"
+          @click.native="addBodyParam"
+        />
+      </div>
+    </div>
+    <div
+      v-for="(param, index) in bodyParams"
+      :key="`param-${index}`"
+      class="divide-x divide-dividerLight border-b border-dividerLight flex"
+    >
+      <SmartEnvInput
+        v-if="EXPERIMENTAL_URL_BAR_ENABLED"
+        v-model="param.key"
+        :placeholder="$t('count.parameter', { count: index + 1 })"
+        styles="
+          bg-transparent
+          flex
+          flex-1
+          py-1
+          px-4
+        "
+        @change="
+          updateBodyParam(index, {
+            key: $event,
+            value: param.value,
+            active: param.active,
+            isFile: param.isFile,
+          })
+        "
+      />
+      <input
+        v-else
+        class="bg-transparent flex flex-1 py-2 px-4"
+        :placeholder="$t('count.parameter', { count: index + 1 })"
+        :name="'param' + index"
+        :value="param.key"
+        autofocus
+        @change="
+          updateBodyParam(index, {
+            key: $event.target.value,
+            value: param.value,
+            active: param.active,
+            isFile: param.isFile,
+          })
+        "
+      />
+      <div v-if="param.isFile" class="file-chips-container hide-scrollbar">
+        <div class="space-x-2 file-chips-wrapper">
+          <SmartDeletableChip
+            v-for="(file, fileIndex) in param.value"
+            :key="`param-${index}-file-${fileIndex}`"
+            @chip-delete="chipDelete(index, fileIndex)"
+          >
+            {{ file.name }}
+          </SmartDeletableChip>
+        </div>
+      </div>
+      <span v-else class="flex flex-1">
+        <SmartEnvInput
+          v-if="EXPERIMENTAL_URL_BAR_ENABLED"
+          v-model="param.value"
+          :placeholder="$t('count.value', { count: index + 1 })"
+          styles="
+            bg-transparent
+            flex
+            flex-1
+            py-1
+            px-4
+          "
+          @change="
+            updateBodyParam(index, {
+              key: param.key,
+              value: $event,
+              active: param.active,
+              isFile: param.isFile,
+            })
+          "
+        />
         <input
-          v-if="!requestBodyParamIsFile(index)"
-          class="input"
-          :placeholder="`value ${index + 1}`"
+          v-else
+          class="bg-transparent flex flex-1 py-2 px-4"
+          :placeholder="$t('count.value', { count: index + 1 })"
+          :name="'value' + index"
           :value="param.value"
           @change="
-            // if input is form data, set value to be an array containing the value
-            // only
-            updateBodyParams($event, index, `setValueBodyParams`)
+            updateBodyParam(index, {
+              key: param.key,
+              value: $event.target.value,
+              active: param.active,
+              isFile: param.isFile,
+            })
           "
-          @keyup.prevent="setRouteQueryState"
         />
-        <div v-else class="file-chips-container">
-          <div class="file-chips-wrapper">
-            <SmartDeletableChip
-              v-for="(file, i) in Array.from(bodyParams[index].value)"
-              :key="`body-param-${index}-file-${i}`"
-              @chip-delete="chipDelete(index, i)"
-            >
-              {{ file.name }}
-            </SmartDeletableChip>
-          </div>
-        </div>
-      </li>
-      <div>
-        <li>
-          <button
-            v-tooltip.bottom="{
-              content: param.hasOwnProperty('active')
-                ? param.active
-                  ? $t('turn_off')
-                  : $t('turn_on')
-                : $t('turn_off'),
-            }"
-            class="icon button"
-            @click="toggleActive(index, param)"
-          >
-            <i class="material-icons">
-              {{
-                param.hasOwnProperty("active")
-                  ? param.active
-                    ? "check_box"
-                    : "check_box_outline_blank"
-                  : "check_box"
-              }}
-            </i>
-          </button>
-        </li>
-      </div>
-      <div v-if="contentType === 'multipart/form-data'">
-        <li>
-          <label for="attachment" class="p-0">
-            <button
-              class="w-full button icon"
-              @click="$refs.attachment[index].click()"
-            >
-              <i class="material-icons">attach_file</i>
-            </button>
-          </label>
-          <input
-            ref="attachment"
-            class="input"
-            name="attachment"
-            type="file"
-            multiple
-            @change="setRequestAttachment($event, index)"
+      </span>
+      <span>
+        <label for="attachment" class="p-0">
+          <ButtonSecondary
+            class="w-full"
+            svg="paperclip"
+            @click.native="$refs.attachment[index].click()"
           />
-        </li>
-      </div>
-      <div>
-        <li>
-          <button
-            v-tooltip.bottom="$t('delete')"
-            class="icon button"
-            @click="removeRequestBodyParam(index)"
-          >
-            <i class="material-icons">delete</i>
-          </button>
-        </li>
-      </div>
-    </ul>
-    <ul>
-      <li>
-        <button
-          class="icon button"
-          name="addrequest"
-          @click="addRequestBodyParam"
-        >
-          <i class="material-icons">add</i>
-          <span>{{ $t("add_new") }}</span>
-        </button>
-      </li>
-    </ul>
-  </div>
+        </label>
+        <input
+          ref="attachment"
+          class="input"
+          name="attachment"
+          type="file"
+          multiple
+          @change="setRequestAttachment(index, param, $event)"
+        />
+      </span>
+      <span>
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          :title="
+            param.hasOwnProperty('active')
+              ? param.active
+                ? $t('action.turn_off')
+                : $t('action.turn_on')
+              : $t('action.turn_off')
+          "
+          :svg="
+            param.hasOwnProperty('active')
+              ? param.active
+                ? 'check-circle'
+                : 'circle'
+              : 'check-circle'
+          "
+          color="green"
+          @click.native="
+            updateBodyParam(index, {
+              key: param.key,
+              value: param.value,
+              active: param.hasOwnProperty('active') ? !param.active : false,
+              isFile: param.isFile,
+            })
+          "
+        />
+      </span>
+      <span>
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.remove')"
+          svg="trash"
+          color="red"
+          @click.native="deleteBodyParam(index)"
+        />
+      </span>
+    </div>
+    <div
+      v-if="bodyParams.length === 0"
+      class="flex flex-col text-secondaryLight p-4 items-center justify-center"
+    >
+      <span class="text-center pb-4">
+        {{ $t("empty.body") }}
+      </span>
+      <ButtonSecondary
+        :label="$t('add.new')"
+        filled
+        svg="plus"
+        @click.native="addBodyParam"
+      />
+    </div>
+  </AppSection>
 </template>
 
-<script>
-export default {
-  props: {
-    bodyParams: { type: Array, default: () => [] },
-  },
-  computed: {
-    contentType() {
-      return this.$store.state.request.contentType
-    },
-  },
-  methods: {
-    clearContent(bodyParams, $event) {
-      this.$emit("clear-content", bodyParams, $event)
-    },
-    setRouteQueryState() {
-      this.$emit("set-route-query-state")
-    },
-    removeRequestBodyParam(index) {
-      const paramArr = this.$store.state.request.bodyParams.filter(
-        (item, itemIndex) =>
-          itemIndex !== index &&
-          (Object.prototype.hasOwnProperty.call(item, "active")
-            ? item.active === true
-            : true)
-      )
-      this.setRawParams(paramArr)
-      this.$emit("remove-request-body-param", index)
-    },
-    addRequestBodyParam() {
-      this.$emit("add-request-body-param")
-    },
-    setRequestAttachment(event, index) {
-      const { files } = event.target
-      this.$store.commit("setFilesBodyParams", {
-        index,
-        value: Array.from(files),
-      })
-    },
-    requestBodyParamIsFile(index) {
-      const bodyParamValue = this.bodyParams?.[index]?.value
-      const isFile = bodyParamValue?.[0] instanceof File
-      return isFile
-    },
-    chipDelete(paramIndex, fileIndex) {
-      this.$store.commit("removeFile", {
-        index: paramIndex,
-        fileIndex,
-      })
-    },
-    updateBodyParams(event, index, type) {
-      this.$store.commit(type, {
-        index,
-        value: event.target.value,
-      })
-      const paramArr = this.$store.state.request.bodyParams.filter((item) =>
-        Object.prototype.hasOwnProperty.call(item, "active")
-          ? item.active === true
-          : true
-      )
+<script lang="ts">
+import { defineComponent, onMounted, Ref, watch } from "@nuxtjs/composition-api"
+import { FormDataKeyValue } from "~/helpers/types/HoppRESTRequest"
+import { pluckRef } from "~/helpers/utils/composables"
+import {
+  addFormDataEntry,
+  deleteAllFormDataEntries,
+  deleteFormDataEntry,
+  updateFormDataEntry,
+  useRESTRequestBody,
+} from "~/newstore/RESTSession"
+import { useSetting } from "~/newstore/settings"
 
-      this.setRawParams(paramArr)
-    },
-    toggleActive(index, param) {
-      const paramArr = this.$store.state.request.bodyParams.filter(
-        (item, itemIndex) => {
-          if (index === itemIndex) {
-            return !param.active
-          } else {
-            return Object.prototype.hasOwnProperty.call(item, "active")
-              ? item.active === true
-              : true
-          }
+export default defineComponent({
+  setup() {
+    const bodyParams = pluckRef<any, any>(useRESTRequestBody(), "body") as Ref<
+      FormDataKeyValue[]
+    >
+
+    const addBodyParam = () => {
+      addFormDataEntry({ key: "", value: "", active: true, isFile: false })
+    }
+
+    const updateBodyParam = (index: number, entry: FormDataKeyValue) => {
+      updateFormDataEntry(index, entry)
+    }
+
+    const deleteBodyParam = (index: number) => {
+      deleteFormDataEntry(index)
+    }
+
+    const clearContent = () => {
+      deleteAllFormDataEntries()
+    }
+
+    const chipDelete = (paramIndex: number, fileIndex: number) => {
+      const entry = bodyParams.value[paramIndex]
+      if (entry.isFile) {
+        entry.value.splice(fileIndex, 1)
+        if (entry.value.length === 0) {
+          updateFormDataEntry(paramIndex, {
+            ...entry,
+            isFile: false,
+            value: "",
+          })
+          return
         }
-      )
+      }
 
-      this.setRawParams(paramArr)
+      updateFormDataEntry(paramIndex, entry)
+    }
 
-      this.$store.commit("setActiveBodyParams", {
-        index,
-        value: Object.prototype.hasOwnProperty.call(param, "active")
-          ? !param.active
-          : false,
-      })
-    },
-    setRawParams(filteredParamArr) {
-      let rawParams = {}
-      filteredParamArr.forEach((_param) => {
-        rawParams = {
-          ...rawParams,
-          [_param.key]: _param.value,
-        }
-      })
-      const rawParamsStr = JSON.stringify(rawParams, null, 2)
-      this.$store.commit("setState", {
-        value: rawParamsStr,
-        attribute: "rawParams",
-      })
-    },
+    const setRequestAttachment = (
+      index: number,
+      entry: FormDataKeyValue,
+      event: InputEvent
+    ) => {
+      const fileEntry: FormDataKeyValue = {
+        ...entry,
+        isFile: true,
+        value: Array.from((event.target as HTMLInputElement).files!),
+      }
+      updateFormDataEntry(index, fileEntry)
+    }
+
+    watch(
+      bodyParams,
+      () => {
+        if (
+          bodyParams.value.length > 0 &&
+          (bodyParams.value[bodyParams.value.length - 1].key !== "" ||
+            bodyParams.value[bodyParams.value.length - 1].value !== "")
+        )
+          addBodyParam()
+      },
+      { deep: true }
+    )
+
+    onMounted(() => {
+      if (!bodyParams.value?.length) {
+        addBodyParam()
+      }
+    })
+
+    return {
+      bodyParams,
+      addBodyParam,
+      updateBodyParam,
+      deleteBodyParam,
+      clearContent,
+      setRequestAttachment,
+      chipDelete,
+      EXPERIMENTAL_URL_BAR_ENABLED: useSetting("EXPERIMENTAL_URL_BAR_ENABLED"),
+    }
   },
-}
+})
 </script>
 
 <style scoped lang="scss">
@@ -244,10 +302,12 @@ export default {
   @apply flex flex-1;
   @apply whitespace-nowrap;
   @apply overflow-auto;
-  @apply bg-primaryDark;
+  @apply bg-transparent;
 
   .file-chips-wrapper {
     @apply flex;
+    @apply px-4;
+    @apply py-1;
     @apply w-0;
   }
 }

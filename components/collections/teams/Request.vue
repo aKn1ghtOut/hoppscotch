@@ -1,36 +1,81 @@
 <template>
-  <div>
-    <div class="transition duration-150 ease-in-out row-wrapper">
-      <div>
-        <button
-          v-tooltip="!doc ? $t('use_request') : ''"
-          class="icon button"
-          @click="!doc ? selectRequest() : {}"
-        >
-          <i v-if="isSelected" class="mx-3 text-green-400 material-icons"
-            >check_circle</i
+  <div class="flex flex-col">
+    <div class="flex items-center group">
+      <span
+        class="
+          cursor-pointer
+          flex
+          px-2
+          w-16
+          justify-center
+          items-center
+          truncate
+        "
+        :class="getRequestLabelColor(request.method)"
+        @click="!doc ? selectRequest() : {}"
+      >
+        <SmartIcon
+          v-if="isSelected"
+          class="svg-icons"
+          :class="{ 'text-green-500': isSelected }"
+          name="check-circle"
+        />
+        <span v-else>
+          {{ request.method }}
+        </span>
+      </span>
+      <span
+        class="
+          cursor-pointer
+          flex flex-1
+          min-w-0
+          py-2
+          pr-2
+          transition
+          items-center
+          group-hover:text-secondaryDark
+        "
+        @click="!doc ? selectRequest() : {}"
+      >
+        <span class="truncate"> {{ request.name }} </span>
+        <span
+          v-if="
+            active &&
+            active.originLocation === 'team-collection' &&
+            active.requestID === requestIndex
+          "
+          class="rounded-full bg-green-500 flex-shrink-0 h-1.5 mx-3 w-1.5"
+        ></span>
+      </span>
+      <div class="flex">
+        <ButtonSecondary
+          v-if="!saveRequest && !doc"
+          v-tippy="{ theme: 'tooltip' }"
+          svg="rotate-ccw"
+          :title="$t('action.restore')"
+          class="hidden group-hover:inline-flex"
+          @click.native="!doc ? selectRequest() : {}"
+        />
+        <span>
+          <tippy
+            v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
+            ref="options"
+            interactive
+            trigger="click"
+            theme="popover"
+            arrow
           >
-
-          <span v-else :class="getRequestLabelColor(request.method)">{{
-            request.method
-          }}</span>
-          <span>{{ request.name }}</span>
-        </button>
-      </div>
-      <v-popover>
-        <button
-          v-if="collectionsType.selectedTeam.myRole !== 'VIEWER'"
-          v-tooltip="$t('more')"
-          class="tooltip-target icon button"
-        >
-          <i class="material-icons">more_vert</i>
-        </button>
-        <template #popover>
-          <div>
-            <button
-              v-close-popover
-              class="icon button"
-              @click="
+            <template #trigger>
+              <ButtonSecondary
+                v-tippy="{ theme: 'tooltip' }"
+                :title="$t('action.more')"
+                svg="more-vertical"
+              />
+            </template>
+            <SmartItem
+              svg="edit"
+              :label="$t('action.edit')"
+              @click.native="
                 $emit('edit-request', {
                   collectionIndex,
                   folderIndex,
@@ -38,36 +83,42 @@
                   request,
                   requestIndex,
                 })
+                $refs.options.tippy().hide()
               "
-            >
-              <i class="material-icons">edit</i>
-              <span>{{ $t("edit") }}</span>
-            </button>
-          </div>
-          <div>
-            <button
-              v-close-popover
-              class="icon button"
-              @click="confirmRemove = true"
-            >
-              <i class="material-icons">delete</i>
-              <span>{{ $t("delete") }}</span>
-            </button>
-          </div>
-        </template>
-      </v-popover>
+            />
+            <SmartItem
+              svg="trash-2"
+              color="red"
+              :label="$t('action.delete')"
+              @click.native="
+                confirmRemove = true
+                $refs.options.tippy().hide()
+              "
+            />
+          </tippy>
+        </span>
+      </div>
     </div>
     <SmartConfirmModal
       :show="confirmRemove"
-      :title="$t('are_you_sure_remove_request')"
+      :title="$t('confirm.remove_request')"
       @hide-modal="confirmRemove = false"
       @resolve="removeRequest"
     />
   </div>
 </template>
 
-<script>
-export default {
+<script lang="ts">
+import { defineComponent } from "@nuxtjs/composition-api"
+import { translateToNewRequest } from "~/helpers/types/HoppRESTRequest"
+import { useReadonlyStream } from "~/helpers/utils/composables"
+import {
+  restSaveContext$,
+  setRESTRequest,
+  setRESTSaveContext,
+} from "~/newstore/RESTSession"
+
+export default defineComponent({
   props: {
     request: { type: Object, default: () => {} },
     collectionIndex: { type: Number, default: null },
@@ -80,21 +131,26 @@ export default {
     collectionsType: { type: Object, default: () => {} },
     picked: { type: Object, default: () => {} },
   },
+  setup() {
+    const active = useReadonlyStream(restSaveContext$, null)
+    return {
+      active,
+    }
+  },
   data() {
     return {
-      dragging: false,
       requestMethodLabels: {
-        get: "text-green-400",
-        post: "text-yellow-400",
-        put: "text-blue-400",
-        delete: "text-red-400",
-        default: "text-gray-400",
+        get: "text-green-500",
+        post: "text-yellow-500",
+        put: "text-blue-500",
+        delete: "text-red-500",
+        default: "text-gray-500",
       },
       confirmRemove: false,
     }
   },
   computed: {
-    isSelected() {
+    isSelected(): boolean {
       return (
         this.picked &&
         this.picked.pickedType === "teams-request" &&
@@ -104,6 +160,14 @@ export default {
   },
   methods: {
     selectRequest() {
+      if (
+        this.active &&
+        this.active.originLocation === "team-collection" &&
+        this.active.requestID === this.requestIndex
+      ) {
+        setRESTSaveContext(null)
+        return
+      }
       if (this.$props.saveRequest)
         this.$emit("select", {
           picked: {
@@ -112,7 +176,10 @@ export default {
           },
         })
       else
-        this.$store.commit("postwoman/selectRequest", { request: this.request })
+        setRESTRequest(translateToNewRequest(this.request), {
+          originLocation: "team-collection",
+          requestID: this.requestIndex as string,
+        })
     },
     removeRequest() {
       this.$emit("remove-request", {
@@ -121,12 +188,12 @@ export default {
         requestIndex: this.$props.requestIndex,
       })
     },
-    getRequestLabelColor(method) {
+    getRequestLabelColor(method: any) {
       return (
-        this.requestMethodLabels[method.toLowerCase()] ||
+        (this.requestMethodLabels as any)[method.toLowerCase()] ||
         this.requestMethodLabels.default
       )
     },
   },
-}
+})
 </script>

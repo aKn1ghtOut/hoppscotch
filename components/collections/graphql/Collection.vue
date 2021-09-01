@@ -1,10 +1,7 @@
 <template>
-  <div>
+  <div class="flex flex-col" :class="[{ 'bg-primaryLight': dragging }]">
     <div
-      :class="[
-        'row-wrapper transition duration-150 ease-in-out',
-        { 'bg-primaryDark': dragging },
-      ]"
+      class="flex items-center group"
       @dragover.prevent
       @drop.prevent="dropEvent"
       @dragover="dragging = true"
@@ -12,137 +9,145 @@
       @dragleave="dragging = false"
       @dragend="dragging = false"
     >
-      <button class="icon button" @click="toggleShowChildren">
-        <i v-show="!showChildren && !isFiltered" class="material-icons"
-          >arrow_right</i
-        >
-        <i v-show="showChildren || isFiltered" class="material-icons"
-          >arrow_drop_down</i
-        >
-
-        <i v-if="isSelected" class="mx-3 text-green-400 material-icons"
-          >check_circle</i
-        >
-
-        <i v-else class="material-icons">folder</i>
-        <span>{{ collection.name }}</span>
-      </button>
-      <div>
-        <button
-          v-if="doc"
-          v-tooltip.left="$t('import')"
-          class="icon button"
-          @click="$emit('select-collection')"
-        >
-          <i class="material-icons">topic</i>
-        </button>
-        <v-popover>
-          <button
-            v-tooltip.left="$t('more')"
-            class="tooltip-target icon button"
+      <span
+        class="cursor-pointer flex px-4 justify-center items-center"
+        @click="toggleShowChildren()"
+      >
+        <SmartIcon
+          class="svg-icons"
+          :class="{ 'text-green-500': isSelected }"
+          :name="getCollectionIcon"
+        />
+      </span>
+      <span
+        class="
+          cursor-pointer
+          flex flex-1
+          min-w-0
+          py-2
+          pr-2
+          transition
+          group-hover:text-secondaryDark
+        "
+        @click="toggleShowChildren()"
+      >
+        <span class="truncate"> {{ collection.name }} </span>
+      </span>
+      <div class="flex">
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          svg="folder-plus"
+          :title="$t('folder.new')"
+          class="hidden group-hover:inline-flex"
+          @click.native="
+            $emit('add-folder', {
+              path: `${collectionIndex}`,
+            })
+          "
+        />
+        <span>
+          <tippy
+            ref="options"
+            interactive
+            trigger="click"
+            theme="popover"
+            arrow
           >
-            <i class="material-icons">more_vert</i>
-          </button>
-          <template #popover>
-            <div>
-              <button
-                v-close-popover
-                class="icon button"
-                @click="
-                  $emit('add-folder', {
-                    path: `${collectionIndex}`,
-                  })
-                "
-              >
-                <i class="material-icons">create_new_folder</i>
-                <span>{{ $t("new_folder") }}</span>
-              </button>
-            </div>
-            <div>
-              <button
-                v-close-popover
-                class="icon button"
-                @click="$emit('edit-collection')"
-              >
-                <i class="material-icons">create</i>
-                <span>{{ $t("edit") }}</span>
-              </button>
-            </div>
-            <div>
-              <button
-                v-close-popover
-                class="icon button"
-                @click="confirmRemove = true"
-              >
-                <i class="material-icons">delete</i>
-                <span>{{ $t("delete") }}</span>
-              </button>
-            </div>
-          </template>
-        </v-popover>
+            <template #trigger>
+              <ButtonSecondary
+                v-tippy="{ theme: 'tooltip' }"
+                :title="$t('action.more')"
+                svg="more-vertical"
+              />
+            </template>
+            <SmartItem
+              svg="folder-plus"
+              :label="$t('folder.new')"
+              @click.native="
+                $emit('add-folder', {
+                  path: `${collectionIndex}`,
+                })
+                $refs.options.tippy().hide()
+              "
+            />
+            <SmartItem
+              svg="edit"
+              :label="$t('action.edit')"
+              @click.native="
+                $emit('edit-collection')
+                $refs.options.tippy().hide()
+              "
+            />
+            <SmartItem
+              svg="trash-2"
+              color="red"
+              :label="$t('action.delete')"
+              @click.native="
+                confirmRemove = true
+                $refs.options.tippy().hide()
+              "
+            />
+          </tippy>
+        </span>
       </div>
     </div>
-    <div v-show="showChildren || isFiltered">
-      <ul class="flex-col">
-        <li
-          v-for="(folder, index) in collection.folders"
-          :key="folder.name"
-          class="ml-8 border-l border-divider"
-        >
-          <CollectionsGraphqlFolder
-            :picked="picked"
-            :saving-mode="savingMode"
-            :folder="folder"
-            :folder-index="index"
-            :folder-path="`${collectionIndex}/${index}`"
-            :collection-index="collectionIndex"
-            :doc="doc"
-            :is-filtered="isFiltered"
-            @add-folder="$emit('add-folder', $event)"
-            @edit-folder="$emit('edit-folder', $event)"
-            @edit-request="$emit('edit-request', $event)"
-            @select="$emit('select', $event)"
-          />
-        </li>
-      </ul>
-      <ul class="flex-col">
-        <li
-          v-for="(request, index) in collection.requests"
-          :key="index"
-          class="ml-8 border-l border-divider"
-        >
-          <CollectionsGraphqlRequest
-            :picked="picked"
-            :saving-mode="savingMode"
-            :request="request"
-            :collection-index="collectionIndex"
-            :folder-index="-1"
-            :folder-name="collection.name"
-            :folder-path="`${collectionIndex}`"
-            :request-index="index"
-            :doc="doc"
-            @edit-request="$emit('edit-request', $event)"
-            @select="$emit('select', $event)"
-          />
-        </li>
-      </ul>
-      <ul>
-        <li
-          v-if="
-            collection.folders.length === 0 && collection.requests.length === 0
-          "
-          class="flex ml-8 border-l border-divider"
-        >
-          <p class="info">
-            <i class="material-icons">not_interested</i>
-            {{ $t("collection_empty") }}
-          </p>
-        </li>
-      </ul>
+    <div v-if="showChildren || isFiltered">
+      <CollectionsGraphqlFolder
+        v-for="(folder, index) in collection.folders"
+        :key="`folder-${index}`"
+        class="border-l border-dividerLight ml-6"
+        :picked="picked"
+        :saving-mode="savingMode"
+        :folder="folder"
+        :folder-index="index"
+        :folder-path="`${collectionIndex}/${index}`"
+        :collection-index="collectionIndex"
+        :doc="doc"
+        :is-filtered="isFiltered"
+        @add-folder="$emit('add-folder', $event)"
+        @edit-folder="$emit('edit-folder', $event)"
+        @edit-request="$emit('edit-request', $event)"
+        @select="$emit('select', $event)"
+      />
+      <CollectionsGraphqlRequest
+        v-for="(request, index) in collection.requests"
+        :key="`request-${index}`"
+        class="border-l border-dividerLight ml-6"
+        :picked="picked"
+        :saving-mode="savingMode"
+        :request="request"
+        :collection-index="collectionIndex"
+        :folder-index="-1"
+        :folder-name="collection.name"
+        :folder-path="`${collectionIndex}`"
+        :request-index="index"
+        :doc="doc"
+        @edit-request="$emit('edit-request', $event)"
+        @select="$emit('select', $event)"
+      />
+      <div
+        v-if="
+          collection.folders.length === 0 && collection.requests.length === 0
+        "
+        class="
+          border-l border-dividerLight
+          flex flex-col
+          text-secondaryLight
+          ml-6
+          p-4
+          items-center
+          justify-center
+        "
+      >
+        <i class="opacity-75 pb-2 material-icons">folder_open</i>
+        <span class="text-center">
+          {{ $t("empty.collection") }}
+        </span>
+      </div>
     </div>
     <SmartConfirmModal
       :show="confirmRemove"
-      :title="$t('are_you_sure_remove_collection')"
+      :title="$t('confirm.remove_collection')"
       @hide-modal="confirmRemove = false"
       @resolve="removeCollection"
     />
@@ -150,13 +155,13 @@
 </template>
 
 <script lang="ts">
-import Vue from "vue"
+import { defineComponent } from "@nuxtjs/composition-api"
 import {
   removeGraphqlCollection,
   moveGraphqlRequest,
 } from "~/newstore/collections"
 
-export default Vue.extend({
+export default defineComponent({
   props: {
     picked: { type: Object, default: null },
     // Whether the viewing context is related to picking (activates 'select' events)
@@ -181,6 +186,12 @@ export default Vue.extend({
         this.picked.pickedType === "gql-my-collection" &&
         this.picked.collectionIndex === this.collectionIndex
       )
+    },
+    getCollectionIcon() {
+      if (this.isSelected) return "check-circle"
+      else if (!this.showChildren && !this.isFiltered) return "folder"
+      else if (this.showChildren || this.isFiltered) return "folder-minus"
+      else return "folder"
     },
   },
   methods: {
@@ -209,8 +220,7 @@ export default Vue.extend({
         this.$emit("select", { picked: null })
       }
       removeGraphqlCollection(this.collectionIndex)
-
-      this.$toast.error(this.$t("deleted").toString(), {
+      this.$toast.success(this.$t("state.deleted").toString(), {
         icon: "delete",
       })
     },

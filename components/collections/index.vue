@@ -1,22 +1,144 @@
 <template>
-  <AppSection label="collections">
-    <div class="show-on-large-screen">
-      <input
-        v-if="!saveRequest"
-        v-model="filterText"
-        aria-label="Search"
-        type="search"
-        :placeholder="$t('search')"
-        class="input rounded-t-lg"
+  <AppSection
+    label="collections"
+    :class="{ 'rounded border border-divider': saveRequest }"
+  >
+    <div
+      class="
+        divide-y divide-dividerLight
+        bg-primary
+        border-b border-dividerLight
+        rounded-t
+        flex flex-col
+        top-0
+        z-10
+        sticky
+      "
+      :class="{ '!top-sidebarPrimaryStickyFold': !saveRequest && !doc }"
+    >
+      <div v-if="!saveRequest" class="search-wrappe">
+        <input
+          v-model="filterText"
+          type="search"
+          autocomplete="off"
+          :placeholder="$t('action.search')"
+          class="bg-transparent flex w-full py-2 pr-2 pl-4"
+        />
+      </div>
+      <CollectionsChooseType
+        :collections-type="collectionsType"
+        :show="showTeamCollections"
+        :doc="doc"
+        @update-collection-type="updateCollectionType"
+        @update-selected-team="updateSelectedTeam"
+      />
+      <div class="flex flex-1 justify-between">
+        <ButtonSecondary
+          v-if="
+            collectionsType.type == 'team-collections' &&
+            (collectionsType.selectedTeam == undefined ||
+              collectionsType.selectedTeam.myRole == 'VIEWER')
+          "
+          v-tippy="{ theme: 'tooltip' }"
+          disabled
+          class="!rounded-none"
+          svg="plus"
+          :title="$t('team.no_access')"
+          :label="$t('action.new')"
+        />
+        <ButtonSecondary
+          v-else
+          svg="plus"
+          :label="$t('action.new')"
+          class="!rounded-none"
+          @click.native="displayModalAdd(true)"
+        />
+        <span class="flex">
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            to="https://docs.hoppscotch.io/features/collections"
+            blank
+            :title="$t('app.wiki')"
+            svg="help-circle"
+          />
+          <ButtonSecondary
+            v-if="!saveRequest"
+            v-tippy="{ theme: 'tooltip' }"
+            :disabled="
+              collectionsType.type == 'team-collections' &&
+              collectionsType.selectedTeam == undefined
+            "
+            svg="archive"
+            :title="$t('modal.import_export')"
+            @click.native="displayModalImportExport(true)"
+          />
+        </span>
+      </div>
+    </div>
+    <div class="flex flex-col">
+      <component
+        :is="
+          collectionsType.type == 'my-collections'
+            ? 'CollectionsMyCollection'
+            : 'CollectionsTeamsCollection'
+        "
+        v-for="(collection, index) in filteredCollections"
+        :key="`collection-${index}`"
+        :collection-index="index"
+        :collection="collection"
+        :doc="doc"
+        :is-filtered="filterText.length > 0"
+        :selected="selected.some((coll) => coll == collection)"
+        :save-request="saveRequest"
+        :collections-type="collectionsType"
+        :picked="picked"
+        @edit-collection="editCollection(collection, index)"
+        @add-folder="addFolder($event)"
+        @edit-folder="editFolder($event)"
+        @edit-request="editRequest($event)"
+        @update-team-collections="updateTeamCollections"
+        @select-collection="$emit('use-collection', collection)"
+        @unselect-collection="$emit('remove-collection', collection)"
+        @select="$emit('select', $event)"
+        @expand-collection="expandCollection"
+        @remove-collection="removeCollection"
+        @remove-request="removeRequest"
       />
     </div>
-    <CollectionsChooseType
-      :collections-type="collectionsType"
-      :show="showTeamCollections"
-      :doc="doc"
-      @update-collection-type="updateCollectionType"
-      @update-selected-team="updateSelectedTeam"
-    />
+    <div
+      v-if="filteredCollections.length === 0 && filterText.length === 0"
+      class="flex flex-col text-secondaryLight p-4 items-center justify-center"
+    >
+      <span class="text-center pb-4">
+        {{ $t("empty.collections") }}
+      </span>
+      <ButtonSecondary
+        v-if="
+          collectionsType.type == 'team-collections' &&
+          (collectionsType.selectedTeam == undefined ||
+            collectionsType.selectedTeam.myRole == 'VIEWER')
+        "
+        v-tippy="{ theme: 'tooltip' }"
+        :title="$t('team.no_access')"
+        :label="$t('add.new')"
+        filled
+      />
+      <ButtonSecondary
+        v-else
+        :label="$t('add.new')"
+        filled
+        @click.native="displayModalAdd(true)"
+      />
+    </div>
+    <div
+      v-if="filterText.length !== 0 && filteredCollections.length === 0"
+      class="flex flex-col text-secondaryLight p-4 items-center justify-center"
+    >
+      <i class="opacity-75 pb-2 material-icons">manage_search</i>
+      <span class="text-center">
+        {{ $t("state.nothing_found") }} "{{ filterText }}"
+      </span>
+    </div>
     <CollectionsAdd
       :show="showModalAdd"
       @submit="addNewRootCollection"
@@ -61,89 +183,15 @@
       @hide-modal="displayModalImportOpenAPI(false)"
       @update-team-collections="updateTeamCollections"
     />
-    <div class="border-b row-wrapper border-divider">
-      <button
-        v-if="
-          collectionsType.type == 'team-collections' &&
-          (collectionsType.selectedTeam == undefined ||
-            collectionsType.selectedTeam.myRole == 'VIEWER')
-        "
-        class="icon button"
-        disabled
-        @click="displayModalAdd(true)"
-      >
-        <i class="material-icons">add</i>
-        <div v-tooltip.left="$t('disable_new_collection')">
-          <span>{{ $t("new") }}</span>
-        </div>
-      </button>
-      <button v-else class="icon button" @click="displayModalAdd(true)">
-        <i class="material-icons">add</i>
-        <span>{{ $t("new") }}</span>
-      </button>
-      <button
-        v-if="!saveRequest"
-        :disabled="
-          collectionsType.type == 'team-collections' &&
-          collectionsType.selectedTeam == undefined
-        "
-        class="icon button"
-        @click="displayModalImportExport(true)"
-      >
-        {{ $t("import_export") }}
-      </button>
-    </div>
-    <p v-if="collections.length === 0" class="info">
-      <i class="material-icons">help_outline</i>
-      {{ $t("create_new_collection") }}
-    </p>
-    <div class="virtual-list">
-      <ul class="flex-col">
-        <li
-          v-for="(collection, index) in filteredCollections"
-          :key="collection.name"
-        >
-          <component
-            :is="
-              collectionsType.type == 'my-collections'
-                ? 'CollectionsMyCollection'
-                : 'CollectionsTeamsCollection'
-            "
-            :name="collection.name"
-            :collection-index="index"
-            :collection="collection"
-            :doc="doc"
-            :is-filtered="filterText.length > 0"
-            :selected="selected.some((coll) => coll == collection)"
-            :save-request="saveRequest"
-            :collections-type="collectionsType"
-            :picked="picked"
-            @edit-collection="editCollection(collection, index)"
-            @add-folder="addFolder($event)"
-            @edit-folder="editFolder($event)"
-            @edit-request="editRequest($event)"
-            @update-team-collections="updateTeamCollections"
-            @select-collection="$emit('use-collection', collection)"
-            @unselect-collection="$emit('remove-collection', collection)"
-            @select="$emit('select', $event)"
-            @expand-collection="expandCollection"
-            @remove-collection="removeCollection"
-            @remove-request="removeRequest"
-          />
-        </li>
-      </ul>
-    </div>
-    <p v-if="filterText && filteredCollections.length === 0" class="info">
-      <i class="material-icons">not_interested</i> {{ $t("nothing_found") }} "{{
-        filterText
-      }}"
-    </p>
   </AppSection>
 </template>
 
 <script>
 import gql from "graphql-tag"
 import cloneDeep from "lodash/cloneDeep"
+import { defineComponent } from "@nuxtjs/composition-api"
+import CollectionsMyCollection from "./my/Collection.vue"
+import CollectionsTeamsCollection from "./teams/Collection.vue"
 import { currentUser$ } from "~/helpers/fb/auth"
 import TeamCollectionAdapter from "~/helpers/teams/TeamCollectionAdapter"
 import * as teamUtils from "~/helpers/teams/utils"
@@ -157,13 +205,31 @@ import {
   removeRESTRequest,
   editRESTRequest,
 } from "~/newstore/collections"
+import {
+  useReadonlyStream,
+  useStreamSubscriber,
+} from "~/helpers/utils/composables"
 
-export default {
+export default defineComponent({
+  components: {
+    CollectionsMyCollection,
+    CollectionsTeamsCollection,
+  },
   props: {
     doc: Boolean,
     selected: { type: Array, default: () => [] },
     saveRequest: Boolean,
     picked: { type: Object, default: () => {} },
+  },
+  setup() {
+    const { subscribeToStream } = useStreamSubscriber()
+
+    return {
+      subscribeTo: subscribeToStream,
+
+      collections: useReadonlyStream(restCollections$, []),
+      currentUser: useReadonlyStream(currentUser$, null),
+    }
   },
   data() {
     return {
@@ -190,12 +256,6 @@ export default {
       teamCollectionAdapter: new TeamCollectionAdapter(null),
       teamCollectionsNew: [],
       openapiParsed: undefined,
-    }
-  },
-  subscriptions() {
-    return {
-      collections: restCollections$,
-      currentUser: currentUser$,
     }
   },
   computed: {
@@ -267,7 +327,7 @@ export default {
     },
   },
   mounted() {
-    this.$subscribeTo(this.teamCollectionAdapter.collections$, (colls) => {
+    this.subscribeTo(this.teamCollectionAdapter.collections$, (colls) => {
       this.teamCollectionsNew = cloneDeep(colls)
     })
   },
@@ -285,10 +345,6 @@ export default {
     },
     // Intented to be called by the CollectionAdd modal submit event
     addNewRootCollection(name) {
-      if (!name) {
-        this.$toast.info(this.$t("invalid_collection_name"))
-        return
-      }
       if (this.collectionsType.type === "my-collections") {
         addRESTCollection({
           name,
@@ -306,15 +362,15 @@ export default {
             this.collectionsType.selectedTeam.id
           )
           .then(() => {
-            this.$toast.success(this.$t("collection_added"), {
+            this.$toast.success(this.$t("collection.created"), {
               icon: "done",
             })
           })
-          .catch((error) => {
-            this.$toast.error(this.$t("error_occurred"), {
-              icon: "done",
+          .catch((e) => {
+            this.$toast.error(this.$t("error.something_went_wrong"), {
+              icon: "error_outline",
             })
-            console.error(error)
+            console.error(e)
           })
       }
       this.displayModalAdd(false)
@@ -322,7 +378,9 @@ export default {
     // Intented to be called by CollectionEdit modal submit event
     updateEditingCollection(newName) {
       if (!newName) {
-        this.$toast.info(this.$t("invalid_collection_name"))
+        this.$toast.error(this.$t("collection.invalid_name"), {
+          icon: "error_outline",
+        })
         return
       }
       if (this.collectionsType.type === "my-collections") {
@@ -339,16 +397,15 @@ export default {
         teamUtils
           .renameCollection(this.$apollo, newName, this.editingCollection.id)
           .then(() => {
-            // TODO: $t translations ?
-            this.$toast.success("Collection Renamed", {
+            this.$toast.success(this.$t("collection.renamed"), {
               icon: "done",
             })
           })
-          .catch((error) => {
-            this.$toast.error(this.$t("error_occurred"), {
-              icon: "done",
+          .catch((e) => {
+            this.$toast.error(this.$t("error.something_went_wrong"), {
+              icon: "error_outline",
             })
-            console.error(error)
+            console.error(e)
           })
       }
       this.displayModalEdit(false)
@@ -364,17 +421,15 @@ export default {
         teamUtils
           .renameCollection(this.$apollo, name, this.editingFolder.id)
           .then(() => {
-            // Result
-            this.$toast.success(this.$t("folder_renamed"), {
+            this.$toast.success(this.$t("folder.renamed"), {
               icon: "done",
             })
           })
-          .catch((error) => {
-            // Error
-            this.$toast.error(this.$t("error_occurred"), {
-              icon: "done",
+          .catch((e) => {
+            this.$toast.error(this.$t("error.something_went_wrong"), {
+              icon: "error_outline",
             })
-            console.error(error)
+            console.error(e)
           })
       }
 
@@ -406,16 +461,16 @@ export default {
             this.editingRequestIndex
           )
           .then(() => {
-            this.$toast.success("Request Renamed", {
+            this.$toast.success(this.$t("request.renamed"), {
               icon: "done",
             })
             this.$emit("update-team-collections")
           })
-          .catch((error) => {
-            this.$toast.error(this.$t("error_occurred"), {
-              icon: "done",
+          .catch((e) => {
+            this.$toast.error(this.$t("error.something_went_wrong"), {
+              icon: "error_outline",
             })
-            console.error(error)
+            console.error(e)
           })
       }
 
@@ -486,18 +541,16 @@ export default {
               },
             })
             .then(() => {
-              // Result
-              this.$toast.success(this.$t("folder_added"), {
+              this.$toast.success(this.$t("folder.created"), {
                 icon: "done",
               })
               this.$emit("update-team-collections")
             })
-            .catch((error) => {
-              // Error
-              this.$toast.error(this.$t("error_occurred"), {
-                icon: "done",
+            .catch((e) => {
+              this.$toast.error(this.$t("error.something_went_wrong"), {
+                icon: "error_outline",
               })
-              console.error(error)
+              console.error(e)
             })
         }
       }
@@ -560,8 +613,7 @@ export default {
         }
 
         removeRESTCollection(collectionIndex)
-
-        this.$toast.error(this.$t("deleted"), {
+        this.$toast.success(this.$t("state.deleted"), {
           icon: "delete",
         })
       } else if (collectionsType.type === "team-collections") {
@@ -589,17 +641,15 @@ export default {
               },
             })
             .then(() => {
-              // Result
-              this.$toast.success(this.$t("deleted"), {
+              this.$toast.success(this.$t("state.deleted"), {
                 icon: "delete",
               })
             })
-            .catch((error) => {
-              // Error
-              this.$toast.error(this.$t("error_occurred"), {
-                icon: "done",
+            .catch((e) => {
+              this.$toast.error(this.$t("error.something_went_wrong"), {
+                icon: "error_outline",
               })
-              console.error(error)
+              console.error(e)
             })
         }
       }
@@ -616,8 +666,7 @@ export default {
           this.$emit("select", { picked: null })
         }
         removeRESTRequest(folderPath, requestIndex)
-
-        this.$toast.error(this.$t("deleted"), {
+        this.$toast.success(this.$t("state.deleted"), {
           icon: "delete",
         })
       } else if (this.collectionsType.type === "team-collections") {
@@ -633,26 +682,18 @@ export default {
         teamUtils
           .deleteRequest(this.$apollo, requestIndex)
           .then(() => {
-            // Result
-            this.$toast.success(this.$t("deleted"), {
+            this.$toast.success(this.$t("state.deleted"), {
               icon: "delete",
             })
           })
-          .catch((error) => {
-            // Error
-            this.$toast.error(this.$t("error_occurred"), {
-              icon: "done",
+          .catch((e) => {
+            this.$toast.error(this.$t("error.something_went_wrong"), {
+              icon: "error_outline",
             })
-            console.error(error)
+            console.error(e)
           })
       }
     },
   },
-}
+})
 </script>
-
-<style scoped lang="scss">
-.virtual-list {
-  max-height: calc(100vh - 270px);
-}
-</style>

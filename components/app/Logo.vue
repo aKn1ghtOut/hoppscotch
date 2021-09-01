@@ -1,22 +1,33 @@
 <template>
-  <svg viewBox="0 0 612.001 612.001">
+  <svg
+    class="logo"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    aria-hidden="true"
+    role="img"
+    width="24"
+    height="24"
+    preserveAspectRatio="xMidYMid meet"
+    viewBox="0 0 24 24"
+  >
     <path
-      :fill="color"
-      data-old_color="#202124"
-      class="active-path"
-      data-original="#202124"
-      d="M64.601 236.822C64.601 394.256 192.786 612 306.001 612 412.582 612 547.4 394.256 547.4 236.822S439.322 0 306 0 64.601 79.388 64.601 236.822zm304.12 116.415c29.475-29.475 70.598-40.195 108.552-32.173 8.021 37.954-2.698 79.077-32.173 108.552-29.475 29.476-70.598 40.196-108.552 32.174-8.022-37.955 2.698-79.078 32.173-108.552zm-233.994-32.174c37.954-8.02 79.077 2.698 108.552 32.173 29.475 29.475 40.195 70.598 32.173 108.552-37.954 8.021-79.077-2.698-108.552-32.173-29.475-29.476-40.194-70.598-32.173-108.552z"
+      d="M17 10.54C16.78 7.44 14.63 5 12 5s-4.78 2.44-5 5.54C4 11.23 2 12.5 2 14c0 2.21 4.5 4 10 4s10-1.79 10-4c0-1.5-2-2.77-5-3.46m-2.07 1.3c-1.9.21-3.96.21-5.86 0c-.04-.28-.07-.56-.07-.84c0-2.2 1.35-4 3-4s3 1.8 3 4c0 .28 0 .56-.07.84z"
+      fill="currentColor"
     />
   </svg>
 </template>
 
-<script>
-export default {
-  props: {
-    color: {
-      type: String,
-      default: "",
-    },
-  },
+<style scoped lang="scss">
+.logo {
+  animation: 200ms appear;
 }
-</script>
+
+@keyframes appear {
+  0% {
+    @apply opacity-0;
+  }
+  100% {
+    @apply opacity-100;
+  }
+}
+</style>

@@ -1,9 +1,12 @@
 <template>
   <span class="chip">
-    <span><slot></slot></span>
-    <button class="p-2 icon" @click="$emit('chip-delete')">
-      <i class="material-icons close-button"> close </i>
-    </button>
+    <i class="opacity-75 material-icons">attachment</i>
+    <span class="max-w-64 px-2 truncate"><slot></slot></span>
+    <ButtonSecondary
+      class="rounded close-button"
+      svg="x"
+      @click.native="$emit('chip-delete')"
+    />
   </span>
 </template>
 
@@ -12,19 +15,14 @@
   @apply inline-flex;
   @apply items-center;
   @apply justify-center;
-  @apply rounded-lg;
-  @apply m-1;
-  @apply pl-4;
-  @apply bg-primaryDark;
-  @apply text-secondary;
-  @apply font-mono;
-  @apply transition;
-  @apply ease-in-out;
-  @apply duration-150;
+  @apply rounded;
+  @apply pl-2;
+  @apply pr-0.5;
+  @apply bg-transparent;
   @apply border border-divider;
 }
 
 .close-button {
-  @apply text-base;
+  @apply p-0.5;
 }
 </style>

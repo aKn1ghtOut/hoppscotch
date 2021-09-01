@@ -1,43 +1,43 @@
 <template>
-  <SmartModal v-if="show" @close="$emit('hide-modal')">
-    <template #header>
-      <h3 class="heading">{{ $t("edit_folder") }}</h3>
-      <div>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
+  <SmartModal
+    v-if="show"
+    :title="$t('folder.edit')"
+    @close="$emit('hide-modal')"
+  >
+    <template #body>
+      <div class="flex flex-col px-2">
+        <input
+          id="selectLabelGqlEditFolder"
+          v-model="name"
+          v-focus
+          class="input floating-input"
+          placeholder=" "
+          type="text"
+          autocomplete="off"
+          @keyup.enter="editFolder"
+        />
+        <label for="selectLabelGqlEditFolder">
+          {{ $t("action.label") }}
+        </label>
       </div>
     </template>
-    <template #body>
-      <label for="selectLabelGqlEditFolder">{{ $t("label") }}</label>
-      <input
-        id="selectLabelGqlEditFolder"
-        v-model="name"
-        class="input"
-        type="text"
-        :placeholder="folder.name"
-        @keyup.enter="editFolder"
-      />
-    </template>
     <template #footer>
-      <span></span>
       <span>
-        <button class="icon button" @click="hideModal">
-          {{ $t("cancel") }}
-        </button>
-        <button class="icon button primary" @click="editFolder">
-          {{ $t("save") }}
-        </button>
+        <ButtonPrimary :label="$t('action.save')" @click.native="editFolder" />
+        <ButtonSecondary
+          :label="$t('action.cancel')"
+          @click.native="hideModal"
+        />
       </span>
     </template>
   </SmartModal>
 </template>
 
 <script lang="ts">
-import Vue from "vue"
+import { defineComponent } from "@nuxtjs/composition-api"
 import { editGraphqlFolder } from "~/newstore/collections"
 
-export default Vue.extend({
+export default defineComponent({
   props: {
     show: Boolean,
     folder: { type: Object, default: () => {} },
@@ -45,16 +45,25 @@ export default Vue.extend({
   },
   data() {
     return {
-      name: null,
+      name: "",
     }
   },
   methods: {
     editFolder() {
-      editGraphqlFolder(this.folderPath, { ...this.folder, name: this.name })
+      if (!this.name) {
+        this.$toast.error(this.$t("collection.invalid_name").toString(), {
+          icon: "error_outline",
+        })
+        return
+      }
+      editGraphqlFolder(this.folderPath, {
+        ...(this.folder as any),
+        name: this.name,
+      })
       this.hideModal()
     },
     hideModal() {
-      this.name = null
+      this.name = ""
       this.$emit("hide-modal")
     },
   },

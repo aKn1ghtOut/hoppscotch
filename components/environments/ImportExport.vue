@@ -1,125 +1,117 @@
 <template>
-  <SmartModal v-if="show" @close="hideModal">
-    <template #header>
-      <h3 class="heading">
-        {{ $t("import_export") }} {{ $t("environments") }}
-      </h3>
-      <div>
-        <v-popover>
-          <button
-            v-tooltip.left="$t('more')"
-            class="tooltip-target icon button"
-          >
-            <i class="material-icons">more_vert</i>
-          </button>
-          <template #popover>
-            <div>
-              <button
-                v-close-popover
-                class="icon button"
-                @click="readEnvironmentGist"
-              >
-                <i class="material-icons">assignment_returned</i>
-                <span>{{ $t("import_from_gist") }}</span>
-              </button>
-            </div>
-            <div
-              v-tooltip.bottom="{
-                content: !currentUser
-                  ? $t('login_with_github_to') + $t('create_secret_gist')
-                  : currentUser.provider !== 'github.com'
-                  ? $t('login_with_github_to') + $t('create_secret_gist')
-                  : null,
-              }"
-            >
-              <button
-                v-close-popover
-                :disabled="
-                  !currentUser
-                    ? true
-                    : currentUser.provider !== 'github.com'
-                    ? true
-                    : false
-                "
-                class="icon button"
-                @click="createEnvironmentGist"
-              >
-                <i class="material-icons">assignment_turned_in</i>
-                <span>{{ $t("create_secret_gist") }}</span>
-              </button>
-            </div>
+  <SmartModal
+    v-if="show"
+    :title="`${$t('modal.import_export')} ${$t('environment.title')}`"
+    @close="hideModal"
+  >
+    <template #actions>
+      <span>
+        <tippy ref="options" interactive trigger="click" theme="popover" arrow>
+          <template #trigger>
+            <ButtonSecondary
+              v-tippy="{ theme: 'tooltip' }"
+              :title="$t('action.more')"
+              class="rounded"
+              svg="more-vertical"
+            />
           </template>
-        </v-popover>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
-      </div>
+          <SmartItem
+            icon="assignment_returned"
+            :label="$t('import.from_gist')"
+            @click.native="
+              readEnvironmentGist
+              $refs.options.tippy().hide()
+            "
+          />
+          <span
+            v-tippy="{ theme: 'tooltip' }"
+            :title="
+              !currentUser
+                ? $t('export.require_github')
+                : currentUser.provider !== 'github.com'
+                ? $t('export.require_github')
+                : null
+            "
+          >
+            <SmartItem
+              :disabled="
+                !currentUser
+                  ? true
+                  : currentUser.provider !== 'github.com'
+                  ? true
+                  : false
+              "
+              icon="assignment_turned_in"
+              :label="$t('export.create_secret_gist')"
+              @click.native="
+                createEnvironmentGist
+                $refs.options.tippy().hide()
+              "
+            />
+          </span>
+        </tippy>
+      </span>
     </template>
     <template #body>
-      <div class="flex flex-col items-start p-2">
-        <button
-          v-tooltip="$t('replace_current')"
-          class="icon button"
-          @click="openDialogChooseFileToReplaceWith"
-        >
-          <i class="material-icons">folder_special</i>
-          <span>{{ $t("replace_json") }}</span>
-          <input
-            ref="inputChooseFileToReplaceWith"
-            class="input"
-            type="file"
-            style="display: none"
-            accept="application/json"
-            @change="replaceWithJSON"
-          />
-        </button>
-        <button
-          v-tooltip="$t('preserve_current')"
-          class="icon button"
-          @click="openDialogChooseFileToImportFrom"
-        >
-          <i class="material-icons">create_new_folder</i>
-          <span>{{ $t("import_json") }}</span>
-          <input
-            ref="inputChooseFileToImportFrom"
-            class="input"
-            type="file"
-            style="display: none"
-            accept="application/json"
-            @change="importFromJSON"
-          />
-        </button>
-        <button
-          v-tooltip="$t('download_file')"
-          class="icon button"
-          @click="exportJSON"
-        >
-          <i class="material-icons">drive_file_move</i>
-          <span>
-            {{ $t("export_as_json") }}
-          </span>
-        </button>
+      <div class="flex flex-col space-y-2">
+        <SmartItem
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.replace_current')"
+          svg="file"
+          :label="$t('action.replace_json')"
+          @click.native="openDialogChooseFileToReplaceWith"
+        />
+        <input
+          ref="inputChooseFileToReplaceWith"
+          class="input"
+          type="file"
+          accept="application/json"
+          @change="replaceWithJSON"
+        />
+        <SmartItem
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.preserve_current')"
+          svg="folder-plus"
+          :label="$t('import.json')"
+          @click.native="openDialogChooseFileToImportFrom"
+        />
+        <input
+          ref="inputChooseFileToImportFrom"
+          class="input"
+          type="file"
+          accept="application/json"
+          @change="importFromJSON"
+        />
+        <SmartItem
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.download_file')"
+          svg="download"
+          :label="$t('export.as_json')"
+          @click.native="exportJSON"
+        />
       </div>
     </template>
   </SmartModal>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
 import { currentUser$ } from "~/helpers/fb/auth"
+import { useReadonlyStream } from "~/helpers/utils/composables"
 import {
   environments$,
   replaceEnvironments,
   appendEnvironments,
 } from "~/newstore/environments"
 
-export default {
+export default defineComponent({
   props: {
     show: Boolean,
   },
-  subscriptions() {
+  setup() {
     return {
-      environments: environments$,
-      currentUser: currentUser$,
+      environments: useReadonlyStream(environments$, []),
+      currentUser: useReadonlyStream(currentUser$, null),
     }
   },
   computed: {
@@ -147,20 +139,20 @@ export default {
           }
         )
         .then((res) => {
-          this.$toast.success(this.$t("gist_created"), {
+          this.$toast.success(this.$t("export.gist_created"), {
             icon: "done",
           })
           window.open(res.html_url)
         })
-        .catch((error) => {
-          this.$toast.error(this.$t("something_went_wrong"), {
-            icon: "error",
+        .catch((e) => {
+          this.$toast.error(this.$t("error.something_went_wrong"), {
+            icon: "error_outline",
           })
-          console.log(error)
+          console.error(e)
         })
     },
     async readEnvironmentGist() {
-      const gist = prompt(this.$t("enter_gist_url"))
+      const gist = prompt(this.$t("import.gist_url"))
       if (!gist) return
       await this.$axios
         .$get(`https://api.github.com/gists/${gist.split("/").pop()}`, {
@@ -173,9 +165,9 @@ export default {
           replaceEnvironments(environments)
           this.fileImported()
         })
-        .catch((error) => {
+        .catch((e) => {
           this.failedImport()
-          console.log(error)
+          console.error(e)
         })
     },
     hideModal() {
@@ -209,13 +201,13 @@ export default {
         ) {
           this.importFromPostman(importFileObj)
         } else {
-          this.importFromPostwoman(importFileObj)
+          this.importFromHoppscotch(importFileObj)
         }
       }
       reader.readAsText(this.$refs.inputChooseFileToImportFrom.files[0])
       this.$refs.inputChooseFileToImportFrom.value = ""
     },
-    importFromPostwoman(environments) {
+    importFromHoppscotch(environments) {
       appendEnvironments(environments)
       this.fileImported()
     },
@@ -225,31 +217,31 @@ export default {
         environment.variables.push({ key, value })
       )
       const environments = [environment]
-      this.importFromPostwoman(environments)
+      this.importFromHoppscotch(environments)
     },
     exportJSON() {
-      let text = this.environmentJson
-      text = text.replace(/\n/g, "\r\n")
-      const blob = new Blob([text], {
-        type: "text/json",
+      const dataToWrite = this.environmentJson
+      const file = new Blob([dataToWrite], { type: "application/json" })
+      const a = document.createElement("a")
+      const url = URL.createObjectURL(file)
+      a.href = url
+      // TODO get uri from meta
+      a.download = `${url.split("/").pop().split("#")[0].split("?")[0]}`
+      document.body.appendChild(a)
+      a.click()
+      this.$toast.success(this.$t("state.download_started"), {
+        icon: "downloading",
       })
-      const anchor = document.createElement("a")
-      anchor.download = "hoppscotch-environment.json"
-      anchor.href = window.URL.createObjectURL(blob)
-      anchor.target = "_blank"
-      anchor.style.display = "none"
-      document.body.appendChild(anchor)
-      anchor.click()
-      document.body.removeChild(anchor)
-      this.$toast.success(this.$t("download_started"), {
-        icon: "done",
-      })
+      setTimeout(() => {
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }, 1000)
     },
     fileImported() {
-      this.$toast.info(this.$t("file_imported"), {
+      this.$toast.success(this.$t("state.file_imported"), {
         icon: "folder_shared",
       })
     },
   },
-}
+})
 </script>

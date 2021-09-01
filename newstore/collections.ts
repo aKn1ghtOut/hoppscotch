@@ -1,39 +1,100 @@
 import { pluck } from "rxjs/operators"
 import DispatchingStore, { defineDispatchers } from "./DispatchingStore"
+import { getRESTSaveContext, setRESTSaveContext } from "./RESTSession"
+import {
+  HoppRESTRequest,
+  translateToNewRequest,
+} from "~/helpers/types/HoppRESTRequest"
+import {
+  HoppGQLRequest,
+  translateToGQLRequest,
+} from "~/helpers/types/HoppGQLRequest"
 
-interface Collection {
+export interface Collection<T extends HoppRESTRequest | HoppGQLRequest> {
+  v: number
   name: string
-  folders: Collection[]
-  requests: any[]
+  folders: Collection<T>[]
+  requests: T[]
+
+  id?: string // For Firestore ID
 }
 
 const defaultRESTCollectionState = {
   state: [
-    <Collection>{
+    makeCollection<HoppRESTRequest>({
       name: "My Collection",
       folders: [],
       requests: [],
-    },
+    }),
   ],
 }
 
 const defaultGraphqlCollectionState = {
   state: [
-    <Collection>{
+    makeCollection<HoppGQLRequest>({
       name: "My GraphQL Collection",
       folders: [],
       requests: [],
-    },
+    }),
   ],
+}
+
+export function makeCollection<T extends HoppRESTRequest | HoppGQLRequest>(
+  x: Omit<Collection<T>, "v">
+): Collection<T> {
+  return {
+    v: 1,
+    ...x,
+  }
+}
+
+export function translateToNewRESTCollection(
+  x: any
+): Collection<HoppRESTRequest> {
+  if (x.v && x.v === 1) return x
+
+  // Legacy
+  const name = x.name ?? "Untitled"
+  const folders = (x.folders ?? []).map(translateToNewRESTCollection)
+  const requests = (x.requests ?? []).map(translateToNewRequest)
+
+  const obj = makeCollection<HoppRESTRequest>({
+    name,
+    folders,
+    requests,
+  })
+
+  if (x.id) obj.id = x.id
+
+  return obj
+}
+
+export function translateToNewGQLCollection(
+  x: any
+): Collection<HoppGQLRequest> {
+  if (x.v && x.v === 1) return x
+
+  // Legacy
+  const name = x.name ?? "Untitled"
+  const folders = (x.folders ?? []).map(translateToNewGQLCollection)
+  const requests = (x.requests ?? []).map(translateToGQLRequest)
+
+  const obj = makeCollection<HoppGQLRequest>({
+    name,
+    folders,
+    requests,
+  })
+
+  if (x.id) obj.id = x.id
+
+  return obj
 }
 
 type RESTCollectionStoreType = typeof defaultRESTCollectionState
 type GraphqlCollectionStoreType = typeof defaultGraphqlCollectionState
 
-type CollectionStoreType = RESTCollectionStoreType | GraphqlCollectionStoreType
-
 function navigateToFolderWithIndexPath(
-  collections: Collection[],
+  collections: Collection<HoppRESTRequest | HoppGQLRequest>[],
   indexPaths: number[]
 ) {
   if (indexPaths.length === 0) return null
@@ -46,10 +107,10 @@ function navigateToFolderWithIndexPath(
   return target !== undefined ? target : null
 }
 
-const collectionDispatchers = defineDispatchers({
+const restCollectionDispatchers = defineDispatchers({
   setCollections(
-    _: CollectionStoreType,
-    { entries }: { entries: Collection[] }
+    _: RESTCollectionStoreType,
+    { entries }: { entries: Collection<HoppRESTRequest>[] }
   ) {
     return {
       state: entries,
@@ -57,8 +118,8 @@ const collectionDispatchers = defineDispatchers({
   },
 
   appendCollections(
-    { state }: CollectionStoreType,
-    { entries }: { entries: Collection[] }
+    { state }: RESTCollectionStoreType,
+    { entries }: { entries: Collection<HoppRESTRequest>[] }
   ) {
     return {
       state: [...state, ...entries],
@@ -66,8 +127,8 @@ const collectionDispatchers = defineDispatchers({
   },
 
   addCollection(
-    { state }: CollectionStoreType,
-    { collection }: { collection: Collection }
+    { state }: RESTCollectionStoreType,
+    { collection }: { collection: Collection<any> }
   ) {
     return {
       state: [...state, collection],
@@ -75,20 +136,22 @@ const collectionDispatchers = defineDispatchers({
   },
 
   removeCollection(
-    { state }: CollectionStoreType,
+    { state }: RESTCollectionStoreType,
     { collectionIndex }: { collectionIndex: number }
   ) {
     return {
-      state: state.filter((_, i) => i !== collectionIndex),
+      state: (state as any).filter(
+        (_: any, i: number) => i !== collectionIndex
+      ),
     }
   },
 
   editCollection(
-    { state }: CollectionStoreType,
+    { state }: RESTCollectionStoreType,
     {
       collectionIndex,
       collection,
-    }: { collectionIndex: number; collection: Collection }
+    }: { collectionIndex: number; collection: Collection<any> }
   ) {
     return {
       state: state.map((col, index) =>
@@ -98,14 +161,14 @@ const collectionDispatchers = defineDispatchers({
   },
 
   addFolder(
-    { state }: CollectionStoreType,
+    { state }: RESTCollectionStoreType,
     { name, path }: { name: string; path: string }
   ) {
-    const newFolder: Collection = {
+    const newFolder: Collection<HoppRESTRequest> = makeCollection({
       name,
       folders: [],
       requests: [],
-    }
+    })
 
     const newState = state
     const indexPaths = path.split("/").map((x) => parseInt(x))
@@ -125,7 +188,7 @@ const collectionDispatchers = defineDispatchers({
   },
 
   editFolder(
-    { state }: CollectionStoreType,
+    { state }: RESTCollectionStoreType,
     { path, folder }: { path: string; folder: string }
   ) {
     const newState = state
@@ -148,7 +211,7 @@ const collectionDispatchers = defineDispatchers({
     }
   },
 
-  removeFolder({ state }: CollectionStoreType, { path }: { path: string }) {
+  removeFolder({ state }: RESTCollectionStoreType, { path }: { path: string }) {
     const newState = state
 
     const indexPaths = path.split("/").map((x) => parseInt(x))
@@ -180,7 +243,7 @@ const collectionDispatchers = defineDispatchers({
   },
 
   editRequest(
-    { state }: CollectionStoreType,
+    { state }: RESTCollectionStoreType,
     {
       path,
       requestIndex,
@@ -211,7 +274,7 @@ const collectionDispatchers = defineDispatchers({
   },
 
   saveRequestAs(
-    { state }: CollectionStoreType,
+    { state }: RESTCollectionStoreType,
     { path, request }: { path: string; request: any }
   ) {
     const newState = state
@@ -236,7 +299,7 @@ const collectionDispatchers = defineDispatchers({
   },
 
   removeRequest(
-    { state }: CollectionStoreType,
+    { state }: RESTCollectionStoreType,
     { path, requestIndex }: { path: string; requestIndex: number }
   ) {
     const newState = state
@@ -255,13 +318,296 @@ const collectionDispatchers = defineDispatchers({
 
     targetLocation.requests.splice(requestIndex, 1)
 
+    // If the save context is set and is set to the same source, we invalidate it
+    const saveCtx = getRESTSaveContext()
+    if (
+      saveCtx?.originLocation === "user-collection" &&
+      saveCtx.folderPath === path &&
+      saveCtx.requestIndex === requestIndex
+    ) {
+      setRESTSaveContext(null)
+    }
+
     return {
       state: newState,
     }
   },
 
   moveRequest(
-    { state }: CollectionStoreType,
+    { state }: RESTCollectionStoreType,
+    {
+      path,
+      requestIndex,
+      destinationPath,
+    }: { path: string; requestIndex: number; destinationPath: string }
+  ) {
+    const newState = state
+
+    const indexPaths = path.split("/").map((x) => parseInt(x))
+
+    const targetLocation = navigateToFolderWithIndexPath(newState, indexPaths)
+
+    if (targetLocation === null) {
+      console.log(
+        `Could not resolve source path '${path}'. Skipping moveRequest dispatch.`
+      )
+      return {}
+    }
+
+    const req = targetLocation.requests[requestIndex]
+
+    const destIndexPaths = destinationPath.split("/").map((x) => parseInt(x))
+
+    const destLocation = navigateToFolderWithIndexPath(newState, destIndexPaths)
+
+    if (destLocation === null) {
+      console.log(
+        `Could not resolve destination path '${destinationPath}'. Skipping moveRequest dispatch.`
+      )
+
+      return {}
+    }
+
+    destLocation.requests.push(req)
+    targetLocation.requests.splice(requestIndex, 1)
+
+    return {
+      state: newState,
+    }
+  },
+})
+
+const gqlCollectionDispatchers = defineDispatchers({
+  setCollections(
+    _: GraphqlCollectionStoreType,
+    { entries }: { entries: Collection<any>[] }
+  ) {
+    return {
+      state: entries,
+    }
+  },
+
+  appendCollections(
+    { state }: GraphqlCollectionStoreType,
+    { entries }: { entries: Collection<any>[] }
+  ) {
+    return {
+      state: [...state, ...entries],
+    }
+  },
+
+  addCollection(
+    { state }: GraphqlCollectionStoreType,
+    { collection }: { collection: Collection<any> }
+  ) {
+    return {
+      state: [...state, collection],
+    }
+  },
+
+  removeCollection(
+    { state }: GraphqlCollectionStoreType,
+    { collectionIndex }: { collectionIndex: number }
+  ) {
+    return {
+      state: (state as any).filter(
+        (_: any, i: number) => i !== collectionIndex
+      ),
+    }
+  },
+
+  editCollection(
+    { state }: GraphqlCollectionStoreType,
+    {
+      collectionIndex,
+      collection,
+    }: { collectionIndex: number; collection: Collection<any> }
+  ) {
+    return {
+      state: state.map((col, index) =>
+        index === collectionIndex ? collection : col
+      ),
+    }
+  },
+
+  addFolder(
+    { state }: GraphqlCollectionStoreType,
+    { name, path }: { name: string; path: string }
+  ) {
+    const newFolder: Collection<HoppGQLRequest> = makeCollection({
+      name,
+      folders: [],
+      requests: [],
+    })
+
+    const newState = state
+    const indexPaths = path.split("/").map((x) => parseInt(x))
+
+    const target = navigateToFolderWithIndexPath(newState, indexPaths)
+
+    if (target === null) {
+      console.log(`Could not parse path '${path}'. Ignoring add folder request`)
+      return {}
+    }
+
+    target.folders.push(newFolder)
+
+    return {
+      state: newState,
+    }
+  },
+
+  editFolder(
+    { state }: GraphqlCollectionStoreType,
+    { path, folder }: { path: string; folder: string }
+  ) {
+    const newState = state
+
+    const indexPaths = path.split("/").map((x) => parseInt(x))
+
+    const target = navigateToFolderWithIndexPath(newState, indexPaths)
+
+    if (target === null) {
+      console.log(
+        `Could not parse path '${path}'. Ignoring edit folder request`
+      )
+      return {}
+    }
+
+    Object.assign(target, folder)
+
+    return {
+      state: newState,
+    }
+  },
+
+  removeFolder(
+    { state }: GraphqlCollectionStoreType,
+    { path }: { path: string }
+  ) {
+    const newState = state
+
+    const indexPaths = path.split("/").map((x) => parseInt(x))
+    if (indexPaths.length === 0) {
+      console.log(
+        "Given path too short. If this is a collection, use removeCollection dispatcher instead. Skipping request."
+      )
+      return {}
+    }
+    // We get the index path to the folder itself,
+    // we have to find the folder containing the target folder,
+    // so we pop the last path index
+    const folderIndex = indexPaths.pop() as number
+
+    const containingFolder = navigateToFolderWithIndexPath(newState, indexPaths)
+
+    if (containingFolder === null) {
+      console.log(
+        `Could not resolve path '${path}'. Skipping removeFolder dispatch.`
+      )
+      return {}
+    }
+
+    containingFolder.folders.splice(folderIndex, 1)
+
+    return {
+      state: newState,
+    }
+  },
+
+  editRequest(
+    { state }: GraphqlCollectionStoreType,
+    {
+      path,
+      requestIndex,
+      requestNew,
+    }: { path: string; requestIndex: number; requestNew: any }
+  ) {
+    const newState = state
+
+    const indexPaths = path.split("/").map((x) => parseInt(x))
+
+    const targetLocation = navigateToFolderWithIndexPath(newState, indexPaths)
+
+    if (targetLocation === null) {
+      console.log(
+        `Could not resolve path '${path}'. Ignoring editRequest dispatch.`
+      )
+
+      return {}
+    }
+
+    targetLocation.requests = targetLocation.requests.map((req, index) =>
+      index !== requestIndex ? req : requestNew
+    )
+
+    return {
+      state: newState,
+    }
+  },
+
+  saveRequestAs(
+    { state }: GraphqlCollectionStoreType,
+    { path, request }: { path: string; request: any }
+  ) {
+    const newState = state
+
+    const indexPaths = path.split("/").map((x) => parseInt(x))
+
+    const targetLocation = navigateToFolderWithIndexPath(newState, indexPaths)
+
+    if (targetLocation === null) {
+      console.log(
+        `Could not resolve path '${path}'. Ignoring saveRequestAs dispatch.`
+      )
+
+      return {}
+    }
+
+    targetLocation.requests.push(request)
+
+    return {
+      state: newState,
+    }
+  },
+
+  removeRequest(
+    { state }: GraphqlCollectionStoreType,
+    { path, requestIndex }: { path: string; requestIndex: number }
+  ) {
+    const newState = state
+
+    const indexPaths = path.split("/").map((x) => parseInt(x))
+
+    const targetLocation = navigateToFolderWithIndexPath(newState, indexPaths)
+
+    if (targetLocation === null) {
+      console.log(
+        `Could not resolve path '${path}'. Ignoring removeRequest dispatch.`
+      )
+
+      return {}
+    }
+
+    targetLocation.requests.splice(requestIndex, 1)
+
+    // If the save context is set and is set to the same source, we invalidate it
+    const saveCtx = getRESTSaveContext()
+    if (
+      saveCtx?.originLocation === "user-collection" &&
+      saveCtx.folderPath === path &&
+      saveCtx.requestIndex === requestIndex
+    ) {
+      setRESTSaveContext(null)
+    }
+
+    return {
+      state: newState,
+    }
+  },
+
+  moveRequest(
+    { state }: GraphqlCollectionStoreType,
     {
       path,
       requestIndex,
@@ -306,15 +652,15 @@ const collectionDispatchers = defineDispatchers({
 
 export const restCollectionStore = new DispatchingStore(
   defaultRESTCollectionState,
-  collectionDispatchers
+  restCollectionDispatchers
 )
 
 export const graphqlCollectionStore = new DispatchingStore(
   defaultGraphqlCollectionState,
-  collectionDispatchers
+  gqlCollectionDispatchers
 )
 
-export function setRESTCollections(entries: Collection[]) {
+export function setRESTCollections(entries: Collection<HoppRESTRequest>[]) {
   restCollectionStore.dispatch({
     dispatcher: "setCollections",
     payload: {
@@ -331,7 +677,7 @@ export const graphqlCollections$ = graphqlCollectionStore.subject$.pipe(
   pluck("state")
 )
 
-export function appendRESTCollections(entries: Collection[]) {
+export function appendRESTCollections(entries: Collection<HoppRESTRequest>[]) {
   restCollectionStore.dispatch({
     dispatcher: "appendCollections",
     payload: {
@@ -340,7 +686,7 @@ export function appendRESTCollections(entries: Collection[]) {
   })
 }
 
-export function addRESTCollection(collection: Collection) {
+export function addRESTCollection(collection: Collection<HoppRESTRequest>) {
   restCollectionStore.dispatch({
     dispatcher: "addCollection",
     payload: {
@@ -360,7 +706,7 @@ export function removeRESTCollection(collectionIndex: number) {
 
 export function editRESTCollection(
   collectionIndex: number,
-  collection: Collection
+  collection: Collection<HoppRESTRequest>
 ) {
   restCollectionStore.dispatch({
     dispatcher: "editCollection",
@@ -381,7 +727,10 @@ export function addRESTFolder(name: string, path: string) {
   })
 }
 
-export function editRESTFolder(path: string, folder: Collection) {
+export function editRESTFolder(
+  path: string,
+  folder: Collection<HoppRESTRequest>
+) {
   restCollectionStore.dispatch({
     dispatcher: "editFolder",
     payload: {
@@ -403,7 +752,7 @@ export function removeRESTFolder(path: string) {
 export function editRESTRequest(
   path: string,
   requestIndex: number,
-  requestNew: any
+  requestNew: HoppRESTRequest
 ) {
   restCollectionStore.dispatch({
     dispatcher: "editRequest",
@@ -415,7 +764,15 @@ export function editRESTRequest(
   })
 }
 
-export function saveRESTRequestAs(path: string, request: any) {
+export function saveRESTRequestAs(path: string, request: HoppRESTRequest) {
+  // For calculating the insertion request index
+  const targetLocation = navigateToFolderWithIndexPath(
+    restCollectionStore.value.state,
+    path.split("/").map((x) => parseInt(x))
+  )
+
+  const insertionIndex = targetLocation!.requests.length
+
   restCollectionStore.dispatch({
     dispatcher: "saveRequestAs",
     payload: {
@@ -423,6 +780,8 @@ export function saveRESTRequestAs(path: string, request: any) {
       request,
     },
   })
+
+  return insertionIndex
 }
 
 export function removeRESTRequest(path: string, requestIndex: number) {
@@ -450,7 +809,7 @@ export function moveRESTRequest(
   })
 }
 
-export function setGraphqlCollections(entries: Collection[]) {
+export function setGraphqlCollections(entries: Collection<HoppGQLRequest>[]) {
   graphqlCollectionStore.dispatch({
     dispatcher: "setCollections",
     payload: {
@@ -459,7 +818,9 @@ export function setGraphqlCollections(entries: Collection[]) {
   })
 }
 
-export function appendGraphqlCollections(entries: Collection[]) {
+export function appendGraphqlCollections(
+  entries: Collection<HoppGQLRequest>[]
+) {
   graphqlCollectionStore.dispatch({
     dispatcher: "appendCollections",
     payload: {
@@ -468,7 +829,7 @@ export function appendGraphqlCollections(entries: Collection[]) {
   })
 }
 
-export function addGraphqlCollection(collection: Collection) {
+export function addGraphqlCollection(collection: Collection<HoppGQLRequest>) {
   graphqlCollectionStore.dispatch({
     dispatcher: "addCollection",
     payload: {
@@ -488,7 +849,7 @@ export function removeGraphqlCollection(collectionIndex: number) {
 
 export function editGraphqlCollection(
   collectionIndex: number,
-  collection: Collection
+  collection: Collection<HoppGQLRequest>
 ) {
   graphqlCollectionStore.dispatch({
     dispatcher: "editCollection",
@@ -509,7 +870,10 @@ export function addGraphqlFolder(name: string, path: string) {
   })
 }
 
-export function editGraphqlFolder(path: string, folder: Collection) {
+export function editGraphqlFolder(
+  path: string,
+  folder: Collection<HoppGQLRequest>
+) {
   graphqlCollectionStore.dispatch({
     dispatcher: "editFolder",
     payload: {
@@ -531,7 +895,7 @@ export function removeGraphqlFolder(path: string) {
 export function editGraphqlRequest(
   path: string,
   requestIndex: number,
-  requestNew: any
+  requestNew: HoppGQLRequest
 ) {
   graphqlCollectionStore.dispatch({
     dispatcher: "editRequest",
@@ -543,7 +907,7 @@ export function editGraphqlRequest(
   })
 }
 
-export function saveGraphqlRequestAs(path: string, request: any) {
+export function saveGraphqlRequestAs(path: string, request: HoppGQLRequest) {
   graphqlCollectionStore.dispatch({
     dispatcher: "saveRequestAs",
     payload: {

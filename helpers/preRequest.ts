@@ -1,9 +1,9 @@
 import {
   getCurrentEnvironment,
-  getGlobalEnvironment,
+  getGlobalVariables,
 } from "~/newstore/environments"
 
-export default function getEnvironmentVariablesFromScript(script: any) {
+export default function getEnvironmentVariablesFromScript(script: string) {
   const _variables: Record<string, string> = {}
 
   const currentEnv = getCurrentEnvironment()
@@ -12,10 +12,10 @@ export default function getEnvironmentVariablesFromScript(script: any) {
     _variables[variable.key] = variable.value
   }
 
-  const globalEnv = getGlobalEnvironment()
+  const globalEnv = getGlobalVariables()
 
   if (globalEnv) {
-    for (const variable of globalEnv.variables) {
+    for (const variable of globalEnv) {
       _variables[variable.key] = variable.value
     }
   }

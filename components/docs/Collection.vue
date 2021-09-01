@@ -1,12 +1,12 @@
 <template>
   <div class="collection">
     <h2 class="heading">
-      <i class="material-icons">folder</i>
-      {{ collection.name || $t("none") }}
+      <SmartIcon name="folder" class="svg-icons" />
+      {{ collection.name || $t("state.none") }}
     </h2>
     <span
       v-for="(folder, index) in collection.folders"
-      :key="`sub-collection-${index}`"
+      :key="`folder-${index}`"
       class="folder"
     >
       <DocsFolder :folder="folder" />
@@ -21,14 +21,16 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     collection: { type: Object, default: () => {} },
   },
-}
+})
 </script>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 .collection {
   @apply flex flex-col flex-1;
   @apply justify-center;

@@ -1,16 +1,16 @@
 <template>
-  <div class="p-2 m-2 border-b border-dashed border-divider">
+  <div>
     <div class="field-title" :class="{ 'field-highlighted': isHighlighted }">
       {{ fieldName }}
       <span v-if="fieldArgs.length > 0">
         (
-        <span v-for="(field, index) in fieldArgs" :key="index">
+        <span v-for="(field, index) in fieldArgs" :key="`field-${index}`">
           {{ field.name }}:
           <GraphqlTypeLink
             :gql-type="field.type"
             :jump-type-callback="jumpTypeCallback"
           />
-          <span v-if="index !== fieldArgs.length - 1"> , </span>
+          <span v-if="index !== fieldArgs.length - 1">, </span>
         </span>
         ) </span
       >:
@@ -21,39 +21,39 @@
     </div>
     <div
       v-if="gqlField.description"
-      class="py-2 text-sm text-secondaryLight field-desc"
+      class="text-secondaryLight py-2 field-desc"
     >
       {{ gqlField.description }}
     </div>
     <div
       v-if="gqlField.isDeprecated"
       class="
-        inline-block
-        px-4
-        py-2
-        my-2
-        text-sm
-        font-bold
-        text-black
+        rounded
         bg-yellow-200
-        rounded-lg
+        my-1
+        text-black
+        py-1
+        px-2
+        inline-block
         field-deprecated
       "
     >
-      {{ $t("deprecated") }}
+      {{ $t("state.deprecated") }}
     </div>
     <div v-if="fieldArgs.length > 0">
-      <h5 class="my-2 text-xs">ARGUMENTS:</h5>
-      <div class="px-4 border-l-2 border-accent">
-        <div v-for="(field, index) in fieldArgs" :key="index">
-          {{ field.name }}:
-          <GraphqlTypeLink
-            :gql-type="field.type"
-            :jump-type-callback="jumpTypeCallback"
-          />
+      <h5 class="my-2">Arguments:</h5>
+      <div class="border-divider border-l-2 pl-4">
+        <div v-for="(field, index) in fieldArgs" :key="`field-${index}`">
+          <span>
+            {{ field.name }}:
+            <GraphqlTypeLink
+              :gql-type="field.type"
+              :jump-type-callback="jumpTypeCallback"
+            />
+          </span>
           <div
             v-if="field.description"
-            class="py-2 text-sm text-secondaryLight field-desc"
+            class="text-secondaryLight py-2 field-desc"
           >
             {{ field.description }}
           </div>
@@ -64,7 +64,9 @@
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     gqlField: { type: Object, default: () => {} },
     jumpTypeCallback: { type: Function, default: () => {} },
@@ -79,11 +81,15 @@ export default {
       return this.gqlField.args || []
     },
   },
-}
+})
 </script>
 
 <style scoped lang="scss">
 .field-highlighted {
   @apply border-b-2 border-accent;
+}
+
+.field-title {
+  @apply select-text;
 }
 </style>

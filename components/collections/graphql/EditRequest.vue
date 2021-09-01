@@ -1,47 +1,44 @@
 <template>
-  <SmartModal v-if="show" @close="hideModal">
-    <template #header>
-      <h3 class="heading">{{ $t("edit_request") }}</h3>
-      <div>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
+  <SmartModal v-if="show" :title="$t('modal.edit_request')" @close="hideModal">
+    <template #body>
+      <div class="flex flex-col px-2">
+        <input
+          id="selectLabelGqlEditReq"
+          v-model="requestUpdateData.name"
+          v-focus
+          class="input floating-input"
+          placeholder=" "
+          type="text"
+          autocomplete="off"
+          @keyup.enter="saveRequest"
+        />
+        <label for="selectLabelGqlEditReq">
+          {{ $t("action.label") }}
+        </label>
       </div>
     </template>
-    <template #body>
-      <label for="selectLabelGqlEditReq">{{ $t("label") }}</label>
-      <input
-        id="selectLabelGqlEditReq"
-        v-model="requestUpdateData.name"
-        class="input"
-        type="text"
-        :placeholder="request.name"
-        @keyup.enter="saveRequest"
-      />
-    </template>
     <template #footer>
-      <span></span>
       <span>
-        <button class="icon button" @click="hideModal">
-          {{ $t("cancel") }}
-        </button>
-        <button class="icon button primary" @click="saveRequest">
-          {{ $t("save") }}
-        </button>
+        <ButtonPrimary :label="$t('action.save')" @click.native="saveRequest" />
+        <ButtonSecondary
+          :label="$t('action.cancel')"
+          @click.native="hideModal"
+        />
       </span>
     </template>
   </SmartModal>
 </template>
 
 <script lang="ts">
-import Vue from "vue"
+import { defineComponent, PropType } from "@nuxtjs/composition-api"
+import { HoppGQLRequest } from "~/helpers/types/HoppGQLRequest"
 import { editGraphqlRequest } from "~/newstore/collections"
 
-export default Vue.extend({
+export default defineComponent({
   props: {
     show: Boolean,
     folderPath: { type: String, default: null },
-    request: { type: Object, default: () => {} },
+    request: { type: Object as PropType<HoppGQLRequest>, default: () => {} },
     requestIndex: { type: Number, default: null },
   },
   data() {
@@ -53,6 +50,12 @@ export default Vue.extend({
   },
   methods: {
     saveRequest() {
+      if (!this.requestUpdateData.name) {
+        this.$toast.error(this.$t("collection.invalid_name").toString(), {
+          icon: "error_outline",
+        })
+        return
+      }
       const requestUpdated = {
         ...this.$props.request,
         name: this.$data.requestUpdateData.name || this.$props.request.name,

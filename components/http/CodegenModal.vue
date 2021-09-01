@@ -1,117 +1,128 @@
 <template>
-  <SmartModal v-if="show" @close="hideModal">
-    <template #header>
-      <h3 class="heading">{{ $t("generate_code") }}</h3>
-      <div>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
+  <SmartModal
+    v-if="show"
+    :title="t('request.generate_code')"
+    @close="hideModal"
+  >
+    <template #body>
+      <div class="flex flex-col px-2">
+        <label for="requestType" class="px-4 pb-4">
+          {{ $t("request.choose_language") }}
+        </label>
+        <tippy ref="options" interactive trigger="click" theme="popover" arrow>
+          <template #trigger>
+            <span class="select-wrapper">
+              <ButtonSecondary
+                :label="codegens.find((x) => x.id === codegenType).name"
+                outline
+                class="flex-1 pr-8"
+              />
+            </span>
+          </template>
+          <SmartItem
+            v-for="(gen, index) in codegens"
+            :key="`gen-${index}`"
+            :label="gen.name"
+            :info-icon="gen.id === codegenType ? 'done' : ''"
+            :active-info-icon="gen.id === codegenType"
+            @click.native="
+              () => {
+                codegenType = gen.id
+                options.tippy().hide()
+              }
+            "
+          />
+        </tippy>
+        <div class="flex flex-1 justify-between">
+          <label for="generatedCode" class="px-4 pt-4 pb-4">
+            {{ t("request.generated_code") }}
+          </label>
+        </div>
+        <SmartAceEditor
+          v-if="codegenType"
+          ref="generatedCode"
+          :value="requestCode"
+          :lang="codegens.find((x) => x.id === codegenType).language"
+          :options="{
+            maxLines: 16,
+            minLines: 8,
+            autoScrollEditorIntoView: true,
+            readOnly: true,
+            showPrintMargin: false,
+            useWorker: false,
+          }"
+          styles="border rounded border-dividerLight"
+        />
       </div>
     </template>
-    <template #body>
-      <label for="requestType">{{ $t("choose_language") }}</label>
-      <span class="select-wrapper">
-        <v-popover>
-          <pre v-if="requestType">{{
-            codegens.find((x) => x.id === requestType).name
-          }}</pre>
-          <input
-            v-else
-            id="requestType"
-            v-model="requestType"
-            :placeholder="$t('choose_language')"
-            class="input cursor-pointer"
-            readonly
-            autofocus
-          />
-          <template #popover>
-            <div v-for="gen in codegens" :key="gen.id">
-              <button
-                v-close-popover
-                class="icon button"
-                @click="requestType = gen.id"
-              >
-                {{ gen.name }}
-              </button>
-            </div>
-          </template>
-        </v-popover>
-      </span>
-      <div class="row-wrapper">
-        <label for="generatedCode">{{ $t("generated_code") }}</label>
-        <div>
-          <button
-            ref="copyRequestCode"
-            v-tooltip="$t('copy_code')"
-            class="icon button"
-            @click="copyRequestCode"
-          >
-            <i class="material-icons">{{ copyIcon }}</i>
-          </button>
-        </div>
-      </div>
-      <SmartAceEditor
-        v-if="requestType"
-        ref="generatedCode"
-        :value="requestCode"
-        :lang="codegens.find((x) => x.id === requestType).language"
-        :options="{
-          maxLines: '10',
-          minLines: '10',
-          fontSize: '15px',
-          autoScrollEditorIntoView: true,
-          readOnly: true,
-          showPrintMargin: false,
-          useWorker: false,
-        }"
-        styles="rounded-b-lg"
+    <template #footer>
+      <ButtonPrimary
+        ref="copyRequestCode"
+        :label="t('action.copy')"
+        :svg="copyIcon"
+        @click.native="copyRequestCode"
       />
+      <ButtonSecondary :label="t('action.dismiss')" @click.native="hideModal" />
     </template>
   </SmartModal>
 </template>
 
-<script>
-import { codegens } from "~/helpers/codegen/codegen"
+<script setup lang="ts">
+import { computed, ref, useContext, watch } from "@nuxtjs/composition-api"
+import { codegens, generateCodegenContext } from "~/helpers/codegen/codegen"
+import { copyToClipboard } from "~/helpers/utils/clipboard"
+import { getEffectiveRESTRequest } from "~/helpers/utils/EffectiveURL"
+import { getCurrentEnvironment } from "~/newstore/environments"
+import { getRESTRequest } from "~/newstore/RESTSession"
 
-export default {
-  props: {
-    show: Boolean,
-    requestCode: { type: String, default: null },
-    requestTypeProp: { type: String, default: "curl" },
-  },
-  data() {
-    return {
-      codegens,
-      copyIcon: "content_copy",
+const props = defineProps<{
+  show: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: "hide-modal"): void
+}>()
+
+const {
+  $toast,
+  app: { i18n },
+} = useContext()
+const t = i18n.t.bind(i18n)
+
+const options = ref<any | null>(null)
+
+const request = ref(getRESTRequest())
+const codegenType = ref("curl")
+const copyIcon = ref("copy")
+
+const requestCode = computed(() => {
+  const effectiveRequest = getEffectiveRESTRequest(
+    request.value as any,
+    getCurrentEnvironment()
+  )
+
+  return codegens
+    .find((x) => x.id === codegenType.value)!
+    .generator(generateCodegenContext(effectiveRequest))
+})
+
+watch(
+  () => props.show,
+  (goingToShow) => {
+    if (goingToShow) {
+      request.value = getRESTRequest()
     }
-  },
-  computed: {
-    requestType: {
-      get() {
-        return this.requestTypeProp
-      },
-      set(val) {
-        this.$emit("set-request-type", val)
-      },
-    },
-  },
-  methods: {
-    hideModal() {
-      this.$emit("hide-modal")
-    },
-    handleImport() {
-      this.$emit("handle-import")
-    },
-    copyRequestCode() {
-      this.$refs.generatedCode.editor.selectAll()
-      this.$refs.generatedCode.editor.focus()
-      document.execCommand("copy")
-      this.copyIcon = "done"
-      this.$toast.success(this.$t("copied_to_clipboard"), {
-        icon: "done",
-      })
-      setTimeout(() => (this.copyIcon = "content_copy"), 1000)
-    },
-  },
+  }
+)
+
+const hideModal = () => emit("hide-modal")
+
+const copyRequestCode = () => {
+  copyToClipboard(requestCode.value)
+  copyIcon.value = "check"
+  $toast.success(t("state.copied_to_clipboard").toString(), {
+    icon: "content_paste",
+  })
+  setTimeout(() => (copyIcon.value = "copy"), 1000)
 }
 </script>

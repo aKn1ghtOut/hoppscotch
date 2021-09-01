@@ -1,25 +1,83 @@
 <template>
-  <AppSection label="environments">
-    <div class="show-on-large-screen">
-      <span class="select-wrapper">
-        <select
-          v-model="selectedEnvironmentIndex"
-          :disabled="environments.length == 0"
-          class="select rounded-t-lg"
-        >
-          <option :value="-1">No environment</option>
-          <option v-if="environments.length === 0" value="0">
-            {{ $t("create_new_environment") }}
-          </option>
-          <option
-            v-for="(environment, index) in environments"
-            :key="index"
-            :value="index"
+  <AppSection :label="$t('environment.title')">
+    <div
+      class="
+        bg-primary
+        rounded-t
+        flex flex-col
+        top-sidebarPrimaryStickyFold
+        z-10
+        sticky
+      "
+    >
+      <tippy ref="options" interactive trigger="click" theme="popover" arrow>
+        <template #trigger>
+          <span
+            v-tippy="{ theme: 'tooltip' }"
+            :title="$t('environment.select')"
+            class="
+              bg-transparent
+              border-b border-dividerLight
+              flex-1
+              select-wrapper
+            "
           >
-            {{ environment.name }}
-          </option>
-        </select>
-      </span>
+            <ButtonSecondary
+              v-if="selectedEnvironmentIndex !== -1"
+              :label="environments[selectedEnvironmentIndex].name"
+              class="rounded-none flex-1 pr-8"
+            />
+            <ButtonSecondary
+              v-else
+              :label="$t('environment.no_environment')"
+              class="rounded-none flex-1 pr-8"
+            />
+          </span>
+        </template>
+        <SmartItem
+          :label="$t('environment.no_environment')"
+          :info-icon="selectedEnvironmentIndex === -1 ? 'done' : ''"
+          :active-info-icon="selectedEnvironmentIndex === -1"
+          @click.native="
+            selectedEnvironmentIndex = -1
+            $refs.options.tippy().hide()
+          "
+        />
+        <SmartItem
+          v-for="(gen, index) in environments"
+          :key="`gen-${index}`"
+          :label="gen.name"
+          :info-icon="index === selectedEnvironmentIndex ? 'done' : ''"
+          :active-info-icon="index === selectedEnvironmentIndex"
+          @click.native="
+            selectedEnvironmentIndex = index
+            $refs.options.tippy().hide()
+          "
+        />
+      </tippy>
+      <div class="border-b border-dividerLight flex flex-1 justify-between">
+        <ButtonSecondary
+          svg="plus"
+          :label="$t('action.new')"
+          class="!rounded-none"
+          @click.native="displayModalAdd(true)"
+        />
+        <div class="flex">
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            to="https://docs.hoppscotch.io/features/environments"
+            blank
+            :title="$t('app.wiki')"
+            svg="help-circle"
+          />
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            svg="archive"
+            :title="$t('modal.import_export')"
+            @click.native="displayModalImportExport(true)"
+          />
+        </div>
+      </div>
     </div>
     <EnvironmentsAdd
       :show="showModalAdd"
@@ -27,7 +85,6 @@
     />
     <EnvironmentsEdit
       :show="showModalEdit"
-      :editing-environment="editingEnvironment"
       :editing-environment-index="editingEnvironmentIndex"
       @hide-modal="displayModalEdit(false)"
     />
@@ -35,96 +92,93 @@
       :show="showModalImportExport"
       @hide-modal="displayModalImportExport(false)"
     />
-    <div class="border-b row-wrapper border-divider">
-      <div>
-        <button class="icon button" @click="displayModalAdd(true)">
-          <i class="material-icons">add</i>
-          <span>{{ $t("new") }}</span>
-        </button>
-      </div>
-      <div>
-        <button class="icon button" @click="displayModalImportExport(true)">
-          {{ $t("import_export") }}
-        </button>
-      </div>
+    <div class="flex flex-col">
+      <EnvironmentsEnvironment
+        environment-index="Global"
+        :environment="globalEnvironment"
+        class="border-b border-dashed border-dividerLight"
+        @edit-environment="editEnvironment('Global')"
+      />
+      <EnvironmentsEnvironment
+        v-for="(environment, index) in environments"
+        :key="`environment-${index}`"
+        :environment-index="index"
+        :environment="environment"
+        @edit-environment="editEnvironment(index)"
+      />
     </div>
-    <p v-if="environments.length === 0" class="info">
-      <i class="material-icons">help_outline</i>
-      {{ $t("create_new_environment") }}
-    </p>
-    <div class="virtual-list">
-      <ul class="flex-col">
-        <li
-          v-for="(environment, index) in environments"
-          :key="environment.name"
-        >
-          <EnvironmentsEnvironment
-            :environment-index="index"
-            :environment="environment"
-            @edit-environment="editEnvironment(environment, index)"
-          />
-        </li>
-      </ul>
+    <div
+      v-if="environments.length === 0"
+      class="flex flex-col text-secondaryLight p-4 items-center justify-center"
+    >
+      <span class="text-center pb-4">
+        {{ $t("empty.environments") }}
+      </span>
+      <ButtonSecondary
+        :label="$t('add.new')"
+        filled
+        @click.native="displayModalAdd(true)"
+      />
     </div>
   </AppSection>
 </template>
 
-<script>
+<script lang="ts">
+import { computed, defineComponent } from "@nuxtjs/composition-api"
+import { useReadonlyStream, useStream } from "~/helpers/utils/composables"
 import {
   environments$,
   setCurrentEnvironment,
   selectedEnvIndex$,
+  globalEnv$,
 } from "~/newstore/environments"
 
-export default {
+export default defineComponent({
+  setup() {
+    const globalEnv = useReadonlyStream(globalEnv$, [])
+
+    const globalEnvironment = computed(() => ({
+      name: "Global",
+      variables: globalEnv.value,
+    }))
+
+    return {
+      environments: useReadonlyStream(environments$, []),
+      globalEnvironment,
+      selectedEnvironmentIndex: useStream(
+        selectedEnvIndex$,
+        -1,
+        setCurrentEnvironment
+      ),
+    }
+  },
   data() {
     return {
       showModalImportExport: false,
       showModalAdd: false,
       showModalEdit: false,
-      editingEnvironment: undefined,
-      editingEnvironmentIndex: undefined,
-      selectedEnvironmentIndex: -1,
+      editingEnvironmentIndex: undefined as number | "Global" | undefined,
     }
-  },
-  subscriptions() {
-    return {
-      environments: environments$,
-      selectedEnvironmentIndex: selectedEnvIndex$,
-    }
-  },
-  watch: {
-    selectedEnvironmentIndex(val) {
-      setCurrentEnvironment(val)
-    },
   },
   methods: {
-    displayModalAdd(shouldDisplay) {
+    displayModalAdd(shouldDisplay: boolean) {
       this.showModalAdd = shouldDisplay
     },
-    displayModalEdit(shouldDisplay) {
+    displayModalEdit(shouldDisplay: boolean) {
       this.showModalEdit = shouldDisplay
 
       if (!shouldDisplay) this.resetSelectedData()
     },
-    displayModalImportExport(shouldDisplay) {
+    displayModalImportExport(shouldDisplay: boolean) {
       this.showModalImportExport = shouldDisplay
     },
-    editEnvironment(environment, environmentIndex) {
-      this.$data.editingEnvironment = environment
+    editEnvironment(environmentIndex: number | "Global") {
       this.$data.editingEnvironmentIndex = environmentIndex
       this.displayModalEdit(true)
     },
     resetSelectedData() {
-      this.$data.editingEnvironment = undefined
       this.$data.editingEnvironmentIndex = undefined
     },
   },
-}
+})
 </script>
-
-<style scoped lang="scss">
-.virtual-list {
-  max-height: calc(100vh - 270px);
-}
-</style>

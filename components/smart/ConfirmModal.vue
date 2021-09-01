@@ -1,45 +1,43 @@
 <template>
-  <SmartModal v-if="show" @close="hideModal">
-    <template #header>
-      <h3 class="heading">{{ $t("confirm") }}</h3>
-      <div>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
+  <SmartModal
+    v-if="show"
+    dialog
+    :title="$t('modal.confirm')"
+    @close="hideModal"
+  >
+    <template #body>
+      <div class="flex flex-col px-2">
+        <label>
+          {{ title }}
+        </label>
       </div>
     </template>
-    <template #body>
-      <label>{{ title }}</label>
-    </template>
     <template #footer>
-      <span></span>
       <span>
-        <button class="icon button" @click="hideModal">
-          {{ no }}
-        </button>
-        <button class="icon button primary" @click="resolve">
-          {{ yes }}
-        </button>
+        <ButtonPrimary v-focus :label="yes" @click.native="resolve" />
+        <ButtonSecondary :label="no" @click.native="hideModal" />
       </span>
     </template>
   </SmartModal>
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     show: Boolean,
     title: { type: String, default: null },
     yes: {
       type: String,
       default() {
-        return this.$t("yes")
+        return this.$t("action.yes")
       },
     },
     no: {
       type: String,
       default() {
-        return this.$t("no")
+        return this.$t("action.no")
       },
     },
   },
@@ -49,7 +47,8 @@ export default {
     },
     resolve() {
       this.$emit("resolve")
+      this.$emit("hide-modal")
     },
   },
-}
+})
 </script>

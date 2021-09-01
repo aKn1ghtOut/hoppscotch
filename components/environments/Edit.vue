@@ -1,140 +1,169 @@
 <template>
-  <SmartModal v-if="show" @close="hideModal">
-    <template #header>
-      <h3 class="heading">{{ $t("edit_environment") }}</h3>
-      <div>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
-      </div>
-    </template>
+  <SmartModal v-if="show" :title="$t('environment.edit')" @close="hideModal">
     <template #body>
-      <label for="selectLabelEnvEdit">{{ $t("label") }}</label>
-      <input
-        id="selectLabelEnvEdit"
-        v-model="name"
-        class="input"
-        type="text"
-        :placeholder="editingEnvironment.name"
-        @keyup.enter="saveEnvironment"
-      />
-      <div class="row-wrapper">
-        <label for="variableList">{{ $t("env_variable_list") }}</label>
-        <div>
-          <button
-            v-tooltip.bottom="$t('clear')"
-            class="icon button"
-            @click="clearContent($event)"
+      <div class="flex flex-col px-2">
+        <div class="flex relative">
+          <input
+            id="selectLabelEnvEdit"
+            v-model="name"
+            v-focus
+            class="input floating-input"
+            placeholder=" "
+            type="text"
+            autocomplete="off"
+            :disabled="editingEnvironmentIndex === 'Global'"
+            @keyup.enter="saveEnvironment"
+          />
+          <label for="selectLabelEnvEdit">
+            {{ $t("action.label") }}
+          </label>
+        </div>
+        <div class="flex flex-1 justify-between items-center">
+          <label for="variableList" class="p-4">
+            {{ $t("environment.variable_list") }}
+          </label>
+          <div class="flex">
+            <ButtonSecondary
+              v-tippy="{ theme: 'tooltip' }"
+              :title="$t('action.clear_all')"
+              :svg="clearIcon"
+              class="rounded"
+              @click.native="clearContent()"
+            />
+            <ButtonSecondary
+              v-tippy="{ theme: 'tooltip' }"
+              svg="plus"
+              :title="$t('add.new')"
+              class="rounded"
+              @click.native="addEnvironmentVariable"
+            />
+          </div>
+        </div>
+        <div class="divide-y divide-dividerLight border-divider border rounded">
+          <div
+            v-for="(variable, index) in vars"
+            :key="`variable-${index}`"
+            class="divide-x divide-dividerLight flex"
           >
-            <i class="material-icons">{{ clearIcon }}</i>
-          </button>
+            <input
+              v-model="variable.key"
+              class="bg-transparent flex flex-1 py-2 px-4"
+              :placeholder="$t('count.variable', { count: index + 1 })"
+              :name="'param' + index"
+            />
+            <input
+              v-model="variable.value"
+              class="bg-transparent flex flex-1 py-2 px-4"
+              :placeholder="$t('count.value', { count: index + 1 })"
+              :name="'value' + index"
+            />
+            <div class="flex">
+              <ButtonSecondary
+                id="variable"
+                v-tippy="{ theme: 'tooltip' }"
+                :title="$t('action.remove')"
+                svg="trash"
+                color="red"
+                @click.native="removeEnvironmentVariable(index)"
+              />
+            </div>
+          </div>
+          <div
+            v-if="vars.length === 0"
+            class="
+              flex flex-col
+              text-secondaryLight
+              p-4
+              items-center
+              justify-center
+            "
+          >
+            <SmartIcon class="opacity-75 pb-2" name="layers" />
+            <span class="text-center pb-4">
+              {{ $t("empty.environments") }}
+            </span>
+            <ButtonSecondary
+              :label="$t('add.new')"
+              filled
+              @click.native="addEnvironmentVariable"
+            />
+          </div>
         </div>
       </div>
-      <ul
-        v-for="(variable, index) in vars"
-        :key="index"
-        class="
-          border-b border-dashed
-          divide-y
-          md:divide-x
-          border-divider
-          divide-dashed divide-divider
-          md:divide-y-0
-        "
-        :class="{ 'border-t': index == 0 }"
-      >
-        <li>
-          <input
-            v-model="variable.key"
-            class="input"
-            :placeholder="$t('variable_count', { count: index + 1 })"
-            :name="'param' + index"
-          />
-        </li>
-        <li>
-          <input
-            v-model="variable.value"
-            class="input"
-            :placeholder="$t('value_count', { count: index + 1 })"
-            :name="'value' + index"
-          />
-        </li>
-        <div>
-          <li>
-            <button
-              id="variable"
-              v-tooltip.bottom="$t('delete')"
-              class="icon button"
-              @click="removeEnvironmentVariable(index)"
-            >
-              <i class="material-icons">delete</i>
-            </button>
-          </li>
-        </div>
-      </ul>
-      <ul>
-        <li>
-          <button class="icon button" @click="addEnvironmentVariable">
-            <i class="material-icons">add</i>
-            <span>{{ $t("add_new") }}</span>
-          </button>
-        </li>
-      </ul>
     </template>
     <template #footer>
-      <span></span>
       <span>
-        <button class="icon button" @click="hideModal">
-          {{ $t("cancel") }}
-        </button>
-        <button class="icon button primary" @click="saveEnvironment">
-          {{ $t("save") }}
-        </button>
+        <ButtonPrimary
+          :label="$t('action.save')"
+          @click.native="saveEnvironment"
+        />
+        <ButtonSecondary
+          :label="$t('action.cancel')"
+          @click.native="hideModal"
+        />
       </span>
     </template>
   </SmartModal>
 </template>
 
 <script lang="ts">
-import Vue, { PropType } from "vue"
 import clone from "lodash/clone"
-import type { Environment } from "~/newstore/environments"
-import { updateEnvironment } from "~/newstore/environments"
+import { computed, defineComponent, PropType } from "@nuxtjs/composition-api"
+import {
+  Environment,
+  getEnviroment,
+  getGlobalVariables,
+  setGlobalEnvVariables,
+  updateEnvironment,
+} from "~/newstore/environments"
 
-export default Vue.extend({
+export default defineComponent({
   props: {
     show: Boolean,
-    editingEnvironment: {
-      type: Object as PropType<Environment | null>,
+    editingEnvironmentIndex: {
+      type: [Number, String] as PropType<number | "Global" | null>,
       default: null,
     },
-    editingEnvironmentIndex: { type: Number, default: null },
+  },
+  setup(props) {
+    const workingEnv = computed(() => {
+      if (props.editingEnvironmentIndex === null) return null
+
+      if (props.editingEnvironmentIndex === "Global") {
+        return {
+          name: "Global",
+          variables: getGlobalVariables(),
+        } as Environment
+      } else {
+        return getEnviroment(props.editingEnvironmentIndex)
+      }
+    })
+
+    return {
+      workingEnv,
+    }
   },
   data() {
     return {
       name: null as string | null,
       vars: [] as { key: string; value: string }[],
-      clearIcon: "clear_all",
+      clearIcon: "trash-2",
     }
   },
   watch: {
-    editingEnvironment() {
-      this.name = this.editingEnvironment?.name ?? null
-      this.vars = clone(this.editingEnvironment?.variables ?? [])
-    },
     show() {
-      this.name = this.editingEnvironment?.name ?? null
-      this.vars = clone(this.editingEnvironment?.variables ?? [])
+      this.name = this.workingEnv?.name ?? null
+      this.vars = clone(this.workingEnv?.variables ?? [])
     },
   },
   methods: {
     clearContent() {
       this.vars = []
-      this.clearIcon = "done"
-      this.$toast.info(this.$t("cleared").toString(), {
+      this.clearIcon = "check"
+      this.$toast.success(this.$t("state.cleared").toString(), {
         icon: "clear_all",
       })
-      setTimeout(() => (this.clearIcon = "clear_all"), 1000)
+      setTimeout(() => (this.clearIcon = "trash-2"), 1000)
     },
     addEnvironmentVariable() {
       this.vars.push({
@@ -147,7 +176,9 @@ export default Vue.extend({
     },
     saveEnvironment() {
       if (!this.name) {
-        this.$toast.info(this.$t("invalid_environment_name").toString())
+        this.$toast.error(this.$t("environment.invalid_name").toString(), {
+          icon: "error_outline",
+        })
         return
       }
 
@@ -156,7 +187,9 @@ export default Vue.extend({
         variables: this.vars,
       }
 
-      updateEnvironment(this.editingEnvironmentIndex, environmentUpdated)
+      if (this.editingEnvironmentIndex === "Global")
+        setGlobalEnvVariables(environmentUpdated.variables)
+      else updateEnvironment(this.editingEnvironmentIndex!, environmentUpdated)
       this.hideModal()
     },
     hideModal() {

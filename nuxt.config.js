@@ -1,3 +1,5 @@
+import languages from "./languages"
+
 require("dotenv").config()
 
 // Common options
@@ -6,6 +8,8 @@ export const options = {
   shortDescription: "Open source API development ecosystem",
   description:
     "Helps you create requests faster, saving precious time on development.",
+  keywords:
+    "hoppscotch, hopp scotch, hoppscotch online, hoppscotch app, postwoman, postwoman chrome, postwoman online, postwoman for mac, postwoman app, postwoman for windows, postwoman google chrome, postwoman chrome app, get postwoman, postwoman web, postwoman android, postwoman app for chrome, postwoman mobile app, postwoman web app, api, request, testing, tool, rest, websocket, sse, graphql, socketio",
   loading: {
     color: "var(--accent-color)",
     background: "var(--primary-color)",
@@ -35,8 +39,7 @@ export default {
     meta: [
       {
         name: "keywords",
-        content:
-          "hoppscotch, hopp scotch, hoppscotch online, hoppscotch app, postwoman, postwoman chrome, postwoman online, postwoman for mac, postwoman app, postwoman for windows, postwoman google chrome, postwoman chrome app, get postwoman, postwoman web, postwoman android, postwoman app for chrome, postwoman mobile app, postwoman web app, api, request, testing, tool, rest, websocket, sse, graphql, socketio",
+        content: options.keywords,
       },
       {
         name: "X-UA-Compatible",
@@ -93,10 +96,11 @@ export default {
 
   // Plugins to run before rendering page (https://go.nuxtjs.dev/config-plugins)
   plugins: [
-    "~/plugins/vuex-persist",
-    "~/plugins/v-tooltip",
-    "~/plugins/vue-rx",
+    "~/plugins/v-tippy",
+    "~/plugins/v-focus",
+    "~/plugins/v-textarea",
     "~/plugins/vue-apollo",
+    "~/plugins/crisp",
     { src: "~/plugins/web-worker", ssr: false },
   ],
 
@@ -107,8 +111,6 @@ export default {
   buildModules: [
     // https://github.com/nuxt-community/pwa-module
     "@nuxtjs/pwa",
-    // https://github.com/nuxt-community/eslint-module
-    "@nuxtjs/eslint-module",
     // https://github.com/nuxt-community/stylelint-module
     "@nuxtjs/stylelint-module",
     // https://github.com/nuxt-community/analytics-module
@@ -119,12 +121,18 @@ export default {
     "nuxt-windicss",
     // https://github.com/nuxt-community/color-mode-module
     "@nuxtjs/color-mode",
+    // https://github.com/nuxt-community/svg-module
+    "@nuxtjs/svg",
     // https: //github.com/nuxt-community/google-fonts-module
     "@nuxtjs/google-fonts",
     // https://github.com/nuxt/typescript
-    "@nuxt/typescript-build",
+    ["@nuxt/typescript-build", { typeCheck: false }],
     // https://github.com/nuxt-community/dotenv-module
     "@nuxtjs/dotenv",
+    // https://github.com/nuxt-community/composition-api
+    "@nuxtjs/composition-api/module",
+    // https://github.com/antfu/unplugin-vue2-script-setup
+    "unplugin-vue2-script-setup/nuxt",
   ],
 
   // Modules (https://go.nuxtjs.dev/config-modules)
@@ -134,7 +142,7 @@ export default {
     // https://github.com/nuxt-community/modules/tree/master/packages/toast
     "@nuxtjs/toast",
     // https://github.com/nuxt-community/i18n-module
-    "nuxt-i18n",
+    "@nuxtjs/i18n",
     // https://github.com/nuxt-community/robots-module
     "@nuxtjs/robots",
     // https://github.com/nuxt-community/sitemap-module
@@ -173,8 +181,8 @@ export default {
   toast: {
     position: "bottom-center",
     duration: 3000,
-    theme: "bubble",
     keepOnHover: true,
+    // singleton: true,
   },
 
   // Google Analytics module configuration (https://github.com/nuxt-community/analytics-module)
@@ -189,7 +197,7 @@ export default {
 
   // Sitemap module configuration (https://github.com/nuxt-community/sitemap-module)
   sitemap: {
-    hostname: process.env.BASE_URL || "https://hoppscotch.io",
+    hostname: process.env.BASE_URL,
   },
 
   // Robots module configuration (https://github.com/nuxt-community/robots-module)
@@ -200,152 +208,35 @@ export default {
     Sitemap: `${process.env.BASE_URL}/sitemap.xml`,
   },
 
-  // Color Mode module configuration (https://github.com/nuxt-community/color-mode-module)
-  colorMode: {
-    classSuffix: "",
-    preference: "dark",
-    fallback: "dark",
-  },
-
   // Google Fonts module configuration (https://github.com/nuxt-community/google-fonts-module)
   googleFonts: {
-    download: true,
-    display: "swap",
+    display: "block",
     families: {
+      Inter: [400, 500, 600, 700, 800],
       "Material+Icons": true,
-      Poppins: [400, 500, 600, 700, 800],
-      "Roboto+Mono": true,
+      "Roboto+Mono": [400, 500],
     },
   },
 
   // i18n module configuration (https://github.com/nuxt-community/i18n-module)
   i18n: {
-    locales: [
-      {
-        code: "en",
-        name: "English",
-        iso: "en-US",
-        file: "en-US.json",
-      },
-      {
-        code: "es",
-        name: "Español",
-        iso: "es-ES",
-        file: "es-ES.json",
-      },
-      {
-        code: "fr",
-        name: "Français",
-        iso: "fr-FR",
-        file: "fr-FR.json",
-      },
-      {
-        code: "fa",
-        name: "Farsi",
-        iso: "fa-IR",
-        file: "fa-IR.json",
-      },
-      {
-        code: "pt",
-        name: "Português",
-        iso: "pt-PT",
-        file: "pt-PT.json",
-      },
-      {
-        code: "pt-br",
-        name: "Português Brasileiro",
-        iso: "pt-BR",
-        file: "pt-BR.json",
-      },
-      {
-        code: "cn",
-        name: "简体中文",
-        iso: "zh-CN",
-        file: "zh-CN.json",
-      },
-      {
-        code: "tw",
-        name: "繁體中文",
-        iso: "zh-TW",
-        file: "zh-TW.json",
-      },
-      {
-        code: "id",
-        name: "Bahasa Indonesia",
-        iso: "id-ID",
-        file: "id-ID.json",
-      },
-      {
-        code: "tr",
-        name: "Türkçe",
-        iso: "tr-TR",
-        file: "tr-TR.json",
-      },
-      {
-        code: "de",
-        name: "Deutsch",
-        iso: "de-DE",
-        file: "de-DE.json",
-      },
-      {
-        code: "ja",
-        name: "日本語",
-        iso: "ja-JP",
-        file: "ja-JP.json",
-      },
-      {
-        code: "ko",
-        name: "한국어",
-        iso: "ko-KR",
-        file: "ko-KR.json",
-      },
-      {
-        code: "in",
-        name: "हिंदी",
-        iso: "in-IN",
-        file: "in-IN.json",
-      },
-      {
-        code: "bn",
-        name: "Bengali",
-        iso: "bn-BD",
-        file: "bn-BD.json",
-      },
-      {
-        code: "ml",
-        name: "മലയാളം",
-        iso: "ml-ML",
-        file: "ml-ML.json",
-      },
-      {
-        code: "vi",
-        name: "Vietnamese",
-        iso: "vi-VN",
-        file: "vi-VN.json",
-      },
-      {
-        code: "nl",
-        name: "Dutch",
-        iso: "nl-BE",
-        file: "nl-BE.json",
-      },
-      {
-        code: "nb",
-        name: "Norwegian (Bokmål)",
-        iso: "nb-NO",
-        file: "nb-NO.json",
-      },
-    ],
+    locales: languages,
     defaultLocale: "en",
     vueI18n: {
       fallbackLocale: "en",
     },
     lazy: true,
-    langDir: "lang/",
+    langDir: "locales/",
     detectBrowserLanguage: {
       alwaysRedirect: true,
       fallbackLocale: "en",
     },
+    baseUrl: process.env.BASE_URL,
+  },
+
+  // Color mode configuration (https://github.com/nuxt-community/color-mode-module)
+  colorMode: {
+    classSuffix: "",
   },
 
   // Build Configuration (https://go.nuxtjs.dev/config-build)
@@ -371,6 +262,12 @@ export default {
         config.module.rules.push({
           test: /\.md$/i,
           use: { loader: "raw-loader" },
+          exclude: /(node_modules)/,
+        })
+
+        config.module.rules.push({
+          test: /\.geojson$/i,
+          use: { loader: "json-loader" },
           exclude: /(node_modules)/,
         })
 
@@ -418,5 +315,11 @@ export default {
     APP_ID: process.env.APP_ID,
     MEASUREMENT_ID: process.env.MEASUREMENT_ID,
     BASE_URL: process.env.BASE_URL,
+  },
+
+  // Router configuration (https://nuxtjs.org/api/configuration-router)
+  router: {
+    linkActiveClass: "active-link",
+    linkExactActiveClass: "exact-active-link",
   },
 }

@@ -1,108 +1,118 @@
 <template>
   <div>
-    <ul>
-      <li>
-        <div class="row-wrapper">
-          <label for="rawBody">{{ $t("raw_request_body") }}</label>
-          <div>
-            <button
-              v-if="rawInput && contentType.endsWith('json')"
-              ref="prettifyRequest"
-              v-tooltip="$t('prettify_body')"
-              class="icon button"
-              @click="prettifyRequestBody"
-            >
-              <i class="material-icons">{{ prettifyIcon }}</i>
-            </button>
-            <label for="payload" class="p-0">
-              <button
-                v-tooltip="$t('import_json')"
-                class="icon button"
-                @click="$refs.payload.click()"
-              >
-                <i class="material-icons">post_add</i>
-              </button>
-            </label>
-            <input
-              ref="payload"
-              class="input"
-              name="payload"
-              type="file"
-              @change="uploadPayload"
-            />
-            <button
-              v-tooltip.bottom="$t('clear')"
-              class="icon button"
-              @click="clearContent('rawParams', $event)"
-            >
-              <i class="material-icons">clear_all</i>
-            </button>
-          </div>
-        </div>
-        <div class="relative">
-          <SmartAceEditor
-            v-model="rawParamsBody"
-            :lang="rawInputEditorLang"
-            :options="{
-              maxLines: '16',
-              minLines: '8',
-              fontSize: '15px',
-              autoScrollEditorIntoView: true,
-              showPrintMargin: false,
-              useWorker: false,
-            }"
+    <div
+      class="
+        bg-primary
+        border-b border-dividerLight
+        flex flex-1
+        top-upperTertiaryStickyFold
+        pl-4
+        z-10
+        sticky
+        items-center
+        justify-between
+      "
+    >
+      <label class="font-semibold text-secondaryLight">
+        {{ $t("request.raw_body") }}
+      </label>
+      <div class="flex">
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          to="https://docs.hoppscotch.io/features/body"
+          blank
+          :title="$t('app.wiki')"
+          svg="help-circle"
+        />
+        <ButtonSecondary
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.clear')"
+          svg="trash-2"
+          @click.native="clearContent('rawParams', $event)"
+        />
+        <ButtonSecondary
+          v-if="contentType && contentType.endsWith('json')"
+          ref="prettifyRequest"
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.prettify')"
+          :svg="prettifyIcon"
+          @click.native="prettifyRequestBody"
+        />
+        <label for="payload">
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            :title="$t('import.json')"
+            svg="file-plus"
+            @click.native="$refs.payload.click()"
           />
-        </div>
-      </li>
-    </ul>
+        </label>
+        <input
+          ref="payload"
+          class="input"
+          name="payload"
+          type="file"
+          @change="uploadPayload"
+        />
+      </div>
+    </div>
+    <div class="relative">
+      <SmartAceEditor
+        v-model="rawParamsBody"
+        :lang="rawInputEditorLang"
+        :options="{
+          maxLines: Infinity,
+          minLines: 16,
+          autoScrollEditorIntoView: true,
+          showPrintMargin: false,
+          useWorker: false,
+        }"
+        styles="border-b border-dividerLight"
+      />
+    </div>
   </div>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
 import { getEditorLangForMimeType } from "~/helpers/editorutils"
+import { pluckRef } from "~/helpers/utils/composables"
+import { useRESTRequestBody } from "~/newstore/RESTSession"
 
-export default {
+export default defineComponent({
   props: {
-    rawParams: { type: String, default: null },
-    contentType: { type: String, default: null },
-    rawInput: { type: Boolean, default: false },
+    contentType: {
+      type: String,
+      required: true,
+    },
   },
-  data() {
+  setup() {
     return {
-      prettifyIcon: "photo_filter",
+      rawParamsBody: pluckRef(useRESTRequestBody(), "body"),
+      prettifyIcon: "sparkles",
     }
   },
   computed: {
-    rawParamsBody: {
-      get() {
-        return this.rawParams
-      },
-      set(value) {
-        this.$emit("update-raw-body", value)
-      },
-    },
     rawInputEditorLang() {
       return getEditorLangForMimeType(this.contentType)
     },
   },
   methods: {
-    clearContent(bodyParams, $event) {
-      this.$emit("clear-content", bodyParams, $event)
+    clearContent() {
+      this.rawParamsBody = ""
     },
     uploadPayload() {
-      this.$emit("update-raw-input", true)
       const file = this.$refs.payload.files[0]
       if (file !== undefined && file !== null) {
         const reader = new FileReader()
         reader.onload = ({ target }) => {
-          this.$emit("update-raw-body", target.result)
+          this.rawParamsBody = target.result
         }
         reader.readAsText(file)
-        this.$toast.info(this.$t("file_imported"), {
+        this.$toast.success(this.$t("state.file_imported"), {
           icon: "attach_file",
         })
       } else {
-        this.$toast.error(this.$t("choose_file"), {
+        this.$toast.error(this.$t("action.choose_file"), {
           icon: "attach_file",
         })
       }
@@ -112,14 +122,15 @@ export default {
       try {
         const jsonObj = JSON.parse(this.rawParamsBody)
         this.rawParamsBody = JSON.stringify(jsonObj, null, 2)
-        this.prettifyIcon = "done"
-        setTimeout(() => (this.prettifyIcon = "photo_filter"), 1000)
+        this.prettifyIcon = "check"
+        setTimeout(() => (this.prettifyIcon = "sparkles"), 1000)
       } catch (e) {
-        this.$toast.error(`${this.$t("json_prettify_invalid_body")}`, {
-          icon: "error",
+        console.error(e)
+        this.$toast.error(`${this.$t("error.json_prettify_invalid_body")}`, {
+          icon: "error_outline",
         })
       }
     },
   },
-}
+})
 </script>

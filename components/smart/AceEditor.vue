@@ -1,44 +1,70 @@
 <template>
   <div class="show-if-initialized" :class="{ initialized }">
-    <div v-if="lang == 'json'" class="outline">
-      <div v-for="(p, index) in currPath" :key="index" class="block">
-        <div class="label" @click="onBlockClick(index)">
+    <pre ref="editor" :class="styles"></pre>
+    <div
+      v-if="provideOutline"
+      class="
+        bg-primaryLight
+        border-t border-divider
+        flex flex-nowrap flex-1
+        py-1
+        px-4
+        bottom-0
+        z-10
+        sticky
+        overflow-auto
+        hide-scrollbar
+      "
+    >
+      <div
+        v-for="(p, index) in currentPath"
+        :key="`p-${index}`"
+        class="
+          cursor-pointer
+          flex-grow-0 flex-shrink-0
+          text-secondaryLight
+          inline-flex
+          items-center
+          hover:text-secondary
+        "
+      >
+        <span @click="onBlockClick(index)">
           {{ p }}
-        </div>
-        <i v-if="index + 1 !== currPath.length" class="material-icons"
-          >chevron_right</i
+        </span>
+        <i v-if="index + 1 !== currentPath.length" class="mx-2 material-icons">
+          chevron_right
+        </i>
+        <tippy
+          v-if="siblingDropDownIndex == index"
+          ref="options"
+          interactive
+          trigger="click"
+          theme="popover"
+          arrow
         >
-        <div
-          v-if="sibDropDownIndex == index"
-          :ref="`sibling-${index}`"
-          class="siblings"
-          @mouseleave="clearSibList"
-        >
-          <div
-            v-for="(sib, i) in currSib"
-            :key="i"
-            class="sib"
-            @click="goToSib(sib)"
-          >
-            {{ sib.key ? sib.key.value : i }}
-          </div>
-        </div>
+          <SmartItem
+            v-for="(sibling, siblingIndex) in currentSibling"
+            :key="`p-${index}-sibling-${siblingIndex}`"
+            :label="sibling.key ? sibling.key.value : i"
+            @click.native="goToSibling(sibling)"
+          />
+        </tippy>
       </div>
     </div>
-    <pre ref="editor" :class="styles"></pre>
   </div>
 </template>
 
 <script>
 import ace from "ace-builds"
 import "ace-builds/webpack-resolver"
+import { defineComponent } from "@nuxtjs/composition-api"
 import jsonParse from "~/helpers/jsonParse"
 import debounce from "~/helpers/utils/debounce"
 import outline from "~/helpers/outline"
 
-export default {
+export default defineComponent({
   props: {
-    provideJSONOutline: {
+    provideOutline: {
       type: Boolean,
       default: false,
       required: false,
@@ -77,10 +103,18 @@ export default {
       editor: null,
       cacheValue: "",
       outline: outline(),
-      currPath: [],
-      currSib: [],
-      sibDropDownIndex: null,
+      currentPath: [],
+      currentSibling: [],
+      siblingDropDownIndex: null,
     }
+  },
+
+  computed: {
+    appFontSize() {
+      return getComputedStyle(document.documentElement).getPropertyValue(
+        "--body-font-size"
+      )
+    },
   },
 
   watch: {
@@ -120,12 +154,14 @@ export default {
       })
     })
 
+    editor.setFontSize(this.appFontSize)
+
     if (this.value) editor.setValue(this.value, 1)
 
     this.editor = editor
     this.cacheValue = this.value
 
-    if (this.lang === "json" && this.provideJSONOutline)
+    if (this.lang === "json" && this.provideOutline)
       this.initOutline(this.value)
 
     editor.on("change", () => {
@@ -133,12 +169,12 @@ export default {
       this.$emit("input", content)
       this.cacheValue = content
 
-      if (this.provideJSONOutline) debounce(this.initOutline(content), 500)
+      if (this.provideOutline) debounce(this.initOutline(content), 500)
 
       if (this.lint) this.provideLinting(content)
     })
 
-    if (this.lang === "json" && this.provideJSONOutline) {
+    if (this.lang === "json" && this.provideOutline) {
       editor.session.selection.on("changeCursor", () => {
         const index = editor.session.doc.positionToIndex(
           editor.selection.getCursor(),
@@ -146,10 +182,9 @@ export default {
         )
         const path = this.outline.genPath(index)
         if (path.success) {
-          this.currPath = path.res
+          this.currentPath = path.res
         }
       })
-      document.addEventListener("touchstart", this.onTouchStart)
     }
 
     // Disable linting, if lint prop is false
@@ -158,7 +193,6 @@ export default {
 
   destroyed() {
     this.editor.destroy()
-    document.removeEventListener("touchstart", this.onTouchStart)
   },
 
   methods: {
@@ -195,20 +229,21 @@ export default {
         }
       }
     }, 2000),
+
     onBlockClick(index) {
-      if (this.sibDropDownIndex === index) {
-        this.clearSibList()
+      if (this.siblingDropDownIndex === index) {
+        this.clearSiblingList()
       } else {
-        this.currSib = this.outline.getSiblings(index)
-        if (this.currSib.length) this.sibDropDownIndex = index
+        this.currentSibling = this.outline.getSiblings(index)
+        if (this.currentSibling.length) this.siblingDropDownIndex = index
       }
     },
-    clearSibList() {
-      this.currSib = []
-      this.sibDropDownIndex = null
+    clearSiblingList() {
+      this.currentSibling = []
+      this.siblingDropDownIndex = null
     },
-    goToSib(obj) {
-      this.clearSibList()
+    goToSibling(obj) {
+      this.clearSiblingList()
       if (obj.start) {
         const pos = this.editor.session.doc.indexToPosition(obj.start, 0)
         if (pos) {
@@ -223,87 +258,25 @@ export default {
         try {
           this.outline.init(content)
 
-          if (content[0] === "[") this.currPath.push("[]")
-          else this.currPath.push("{}")
+          if (content[0] === "[") this.currentPath.push("[]")
+          else this.currentPath.push("{}")
         } catch (e) {
           console.log("Outline error: ", e)
         }
       }
     }),
-    onTouchStart(e) {
-      if (
-        this.sibDropDownIndex !== null &&
-        e.target.parentElement !==
-          this.$refs[`sibling-${this.sibDropDownIndex}`][0]
-      ) {
-        this.clearSibList()
-      }
-    },
   },
-}
+})
 </script>
 
-<style lang="scss">
+<style scoped lang="scss">
 .show-if-initialized {
-  @apply opacity-0;
-
   &.initialized {
     @apply opacity-100;
   }
 
   & > * {
     @apply transition-none;
-  }
-}
-
-.outline {
-  @apply flex flex-nowrap;
-  @apply w-full;
-  @apply overflow-auto;
-  @apply font-mono;
-  @apply shadow-lg;
-  @apply px-4;
-
-  .block {
-    @apply inline-flex;
-    @apply items-center;
-    @apply flex-grow-0 flex-shrink-0;
-    @apply text-secondaryLight text-sm;
-
-    &:hover {
-      @apply text-secondary;
-      @apply cursor-pointer;
-    }
-
-    .label {
-      @apply p-2;
-      @apply transition;
-      @apply ease-in-out;
-      @apply duration-150;
-    }
-
-    .siblings {
-      @apply absolute;
-      @apply z-50;
-      @apply top-9;
-      @apply bg-primary;
-      @apply max-h-60;
-      @apply overflow-auto;
-      @apply shadow-lg;
-      @apply text-secondaryLight;
-      @apply overscroll-none;
-
-      border-radius: 0 0 8px 8px;
-    }
-
-    .sib {
-      @apply px-4 py-1;
-
-      &:hover {
-        @apply text-secondary;
-        @apply bg-primaryLight;
-      }
-    }
   }
 }
 </style>

@@ -1,14 +1,92 @@
 <template>
-  <AppSection label="collections">
-    <div class="show-on-large-screen">
+  <AppSection
+    label="collections"
+    :class="{ 'rounded border border-divider': savingMode }"
+  >
+    <div
+      class="
+        divide-y divide-dividerLight
+        border-b border-dividerLight
+        flex flex-col
+        top-sidebarPrimaryStickyFold
+        z-10
+        sticky
+      "
+      :class="{ 'bg-primary': !savingMode }"
+    >
       <input
         v-if="showCollActions"
         v-model="filterText"
-        aria-label="Search"
         type="search"
-        :placeholder="$t('search')"
-        class="input rounded-t-lg"
+        autocomplete="off"
+        :placeholder="$t('action.search')"
+        class="bg-transparent flex w-full py-2 px-4"
       />
+      <div class="flex flex-1 justify-between">
+        <ButtonSecondary
+          svg="plus"
+          :label="$t('action.new')"
+          class="!rounded-none"
+          @click.native="displayModalAdd(true)"
+        />
+        <div class="flex">
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            to="https://docs.hoppscotch.io/features/collections"
+            blank
+            :title="$t('app.wiki')"
+            svg="help-circle"
+          />
+          <ButtonSecondary
+            v-if="showCollActions"
+            v-tippy="{ theme: 'tooltip' }"
+            :title="$t('modal.import_export')"
+            svg="archive"
+            @click.native="displayModalImportExport(true)"
+          />
+        </div>
+      </div>
+    </div>
+    <div class="flex-col">
+      <CollectionsGraphqlCollection
+        v-for="(collection, index) in filteredCollections"
+        :key="`collection-${index}`"
+        :picked="picked"
+        :name="collection.name"
+        :collection-index="index"
+        :collection="collection"
+        :doc="doc"
+        :is-filtered="filterText.length > 0"
+        :saving-mode="savingMode"
+        @edit-collection="editCollection(collection, index)"
+        @add-folder="addFolder($event)"
+        @edit-folder="editFolder($event)"
+        @edit-request="editRequest($event)"
+        @select-collection="$emit('use-collection', collection)"
+        @select="$emit('select', $event)"
+      />
+    </div>
+    <div
+      v-if="collections.length === 0"
+      class="flex flex-col text-secondaryLight p-4 items-center justify-center"
+    >
+      <span class="text-center pb-4">
+        {{ $t("empty.collections") }}
+      </span>
+      <ButtonSecondary
+        :label="$t('add.new')"
+        filled
+        @click.native="displayModalAdd(true)"
+      />
+    </div>
+    <div
+      v-if="!(filteredCollections.length !== 0 || collections.length === 0)"
+      class="flex flex-col text-secondaryLight p-4 items-center justify-center"
+    >
+      <i class="opacity-75 pb-2 material-icons">manage_search</i>
+      <span class="text-center">
+        {{ $t("state.nothing_found") }} "{{ filterText }}"
+      </span>
     </div>
     <CollectionsGraphqlAdd
       :show="showModalAdd"
@@ -45,59 +123,16 @@
       :show="showModalImportExport"
       @hide-modal="displayModalImportExport(false)"
     />
-    <div class="border-b row-wrapper border-divider">
-      <button class="icon button" @click="displayModalAdd(true)">
-        <i class="material-icons">add</i>
-        <span>{{ $t("new") }}</span>
-      </button>
-      <button
-        v-if="showCollActions"
-        class="icon button"
-        @click="displayModalImportExport(true)"
-      >
-        {{ $t("import_export") }}
-      </button>
-    </div>
-    <p v-if="collections.length === 0" class="info">
-      <i class="material-icons">help_outline</i>
-      {{ $t("create_new_collection") }}
-    </p>
-    <div class="virtual-list">
-      <ul class="flex-col">
-        <li
-          v-for="(collection, index) in filteredCollections"
-          :key="collection.name"
-        >
-          <CollectionsGraphqlCollection
-            :picked="picked"
-            :name="collection.name"
-            :collection-index="index"
-            :collection="collection"
-            :doc="doc"
-            :is-filtered="filterText.length > 0"
-            :saving-mode="savingMode"
-            @edit-collection="editCollection(collection, index)"
-            @add-folder="addFolder($event)"
-            @edit-folder="editFolder($event)"
-            @edit-request="editRequest($event)"
-            @select-collection="$emit('use-collection', collection)"
-            @select="$emit('select', $event)"
-          />
-        </li>
-      </ul>
-    </div>
-    <p v-if="filterText && filteredCollections.length === 0" class="info">
-      <i class="material-icons">not_interested</i> {{ $t("nothing_found") }} "{{
-        filterText
-      }}"
-    </p>
   </AppSection>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
+import clone from "lodash/clone"
+import { useReadonlyStream } from "~/helpers/utils/composables"
 import { graphqlCollections$, addGraphqlFolder } from "~/newstore/collections"
 
-export default {
+export default defineComponent({
   props: {
     // Whether to activate the ability to pick items (activates 'select' events)
     savingMode: { type: Boolean, default: false },
@@ -105,6 +140,11 @@ export default {
     picked: { type: Object, default: null },
     // Whether to show the 'New' and 'Import/Export' actions
     showCollActions: { type: Boolean, default: true },
+  },
+  setup() {
+    return {
+      collections: useReadonlyStream(graphqlCollections$, []),
+    }
   },
   data() {
     return {
@@ -125,14 +165,9 @@ export default {
       filterText: "",
     }
   },
-  subscriptions() {
-    return {
-      collections: graphqlCollections$,
-    }
-  },
   computed: {
     filteredCollections() {
-      const collections = this.collections
+      const collections = clone(this.collections)
 
       if (!this.filterText) return collections
 
@@ -243,11 +278,5 @@ export default {
       this.$data.editingRequestIndex = undefined
     },
   },
-}
+})
 </script>
-
-<style scoped lang="scss">
-.virtual-list {
-  max-height: calc(100vh - 270px);
-}
-</style>

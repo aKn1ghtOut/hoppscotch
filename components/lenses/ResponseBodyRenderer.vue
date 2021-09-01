@@ -1,10 +1,10 @@
 <template>
-  <SmartTabs styles="m-4">
+  <SmartTabs styles="sticky z-10 bg-primary top-lowerPrimaryStickyFold">
     <SmartTab
       v-for="(lens, index) in validLenses"
-      :id="lens.lensName"
-      :key="lens.lensName"
-      :label="lens.lensName"
+      :id="lens.renderer"
+      :key="`lens-${index}`"
+      :label="$t(lens.lensName)"
       :selected="index === 0"
     >
       <component :is="lens.renderer" :response="response" />
@@ -12,17 +12,22 @@
     <SmartTab
       v-if="headerLength"
       id="headers"
-      :label="`Headers \xA0 • \xA0 ${headerLength}`"
+      :label="$t('response.headers')"
+      :info="headerLength.toString()"
     >
       <LensesHeadersRenderer :headers="response.headers" />
+    </SmartTab>
+    <SmartTab id="results" :label="$t('test.results')">
+      <HttpTestResult />
     </SmartTab>
   </SmartTabs>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
 import { getSuitableLenses, getLensRenderers } from "~/helpers/lenses/lenses"
 
-export default {
+export default defineComponent({
   components: {
     // Lens Renderers
     ...getLensRenderers(),
@@ -42,5 +47,5 @@ export default {
       return getSuitableLenses(this.response)
     },
   },
-}
+})
 </script>

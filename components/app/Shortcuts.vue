@@ -1,98 +1,115 @@
 <template>
-  <SmartModal v-if="show" @close="hideModal">
-    <template #header>
-      <h3 class="heading">{{ $t("shortcuts") }}</h3>
-      <div>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
+  <AppSlideOver :show="show" @close="close()">
+    <template #content>
+      <div
+        class="
+          bg-primary
+          border-b border-dividerLight
+          flex
+          p-2
+          top-0
+          z-10
+          items-center
+          sticky
+          justify-between
+        "
+      >
+        <h3 class="ml-4 heading">{{ $t("app.shortcuts") }}</h3>
+        <div class="flex">
+          <ButtonSecondary svg="x" class="rounded" @click.native="close()" />
+        </div>
+      </div>
+      <!-- <div class="bg-primary border-b border-dividerLight">
+        <div class="flex flex-col my-4 mx-6">
+          <input
+            v-model="filterText"
+            type="search" autocomplete="off"
+            class="
+              bg-primaryLight
+              border border-dividerLight
+              rounded
+              flex
+              w-full
+              py-2
+              px-4
+              focus-visible:border-divider
+            "
+            :placeholder="$t('action.search')"
+          />
+        </div>
+      </div> -->
+      <div
+        class="
+          divide-y divide-dividerLight
+          flex flex-col flex-1
+          overflow-auto
+          hide-scrollbar
+        "
+      >
+        <div
+          v-for="(map, mapIndex) in mappings"
+          :key="`map-${mapIndex}`"
+          class="space-y-4 py-4 px-6"
+        >
+          <h1 class="font-semibold text-secondaryDark">
+            {{ $t(map.section) }}
+          </h1>
+          <div
+            v-for="(shortcut, shortcutIndex) in map.shortcuts"
+            :key="`map-${mapIndex}-shortcut-${shortcutIndex}`"
+            class="flex items-center"
+          >
+            <span class="flex flex-1 mr-4">
+              {{ $t(shortcut.label) }}
+            </span>
+            <span
+              v-for="(key, keyIndex) in shortcut.keys"
+              :key="`map-${mapIndex}-shortcut-${shortcutIndex}-key-${keyIndex}`"
+              class="shortcut-key"
+            >
+              {{ key }}
+            </span>
+          </div>
+        </div>
       </div>
     </template>
-    <template #body>
-      <div class="p-2">
-        <div>
-          <kbd>{{ getSpecialKey() }}</kbd>
-          +
-          <kbd>G</kbd>
-          <label>{{ $t("send_request") }}</label>
-        </div>
-        <div>
-          <kbd>{{ getSpecialKey() }}</kbd
-          >+<kbd>S</kbd>
-          <label>{{ $t("save_to_collections") }}</label>
-        </div>
-        <div>
-          <kbd>{{ getSpecialKey() }}</kbd
-          >+<kbd>K</kbd>
-          <label>{{ $t("copy_request_link") }}</label>
-        </div>
-        <div>
-          <kbd>{{ getSpecialKey() }}</kbd
-          >+<kbd>I</kbd>
-          <label>{{ $t("reset_request") }}</label>
-        </div>
-      </div>
-      <hr />
-      <div class="p-2">
-        <div>
-          <kbd>Alt</kbd>+<kbd>▲</kbd>
-          <label>{{ $t("select_next_method") }}</label>
-        </div>
-        <div>
-          <kbd>Alt</kbd>+<kbd>▼</kbd>
-          <label>{{ $t("select_previous_method") }}</label>
-        </div>
-      </div>
-      <hr />
-      <div class="p-2">
-        <div>
-          <kbd>Alt</kbd>+<kbd>G</kbd>
-          <label>{{ $t("select_get_method") }}</label>
-        </div>
-        <div>
-          <kbd>Alt</kbd>+<kbd>H</kbd>
-          <label>{{ $t("select_head_method") }}</label>
-        </div>
-        <div>
-          <kbd>Alt</kbd>+<kbd>P</kbd>
-          <label>{{ $t("select_post_method") }}</label>
-        </div>
-        <div>
-          <kbd>Alt</kbd>+<kbd>U</kbd>
-          <label>{{ $t("select_put_method") }}</label>
-        </div>
-        <div>
-          <kbd>Alt</kbd>+<kbd>X</kbd>
-          <label>{{ $t("select_delete_method") }}</label>
-        </div>
-      </div>
-    </template>
-  </SmartModal>
+  </AppSlideOver>
 </template>
 
 <script>
-import { getPlatformSpecialKey } from "~/helpers/platformutils"
+import { defineComponent } from "@nuxtjs/composition-api"
+import shortcuts from "~/helpers/shortcuts"
 
-export default {
+export default defineComponent({
   props: {
     show: Boolean,
   },
-  methods: {
-    getSpecialKey: getPlatformSpecialKey,
-    hideModal() {
-      this.$emit("hide-modal")
+  data() {
+    return {
+      // filterText: "",
+      mappings: shortcuts,
+    }
+  },
+  watch: {
+    $route() {
+      this.$emit("close")
     },
   },
-}
+  methods: {
+    close() {
+      this.$emit("close")
+    },
+  },
+})
 </script>
 
-<style scoped lang="scss">
-kbd {
+<style lang="scss" scoped>
+.shortcut-key {
+  @apply bg-dividerLight;
+  @apply rounded;
+  @apply ml-2;
+  @apply py-1;
+  @apply px-2;
   @apply inline-flex;
-  @apply resize-none;
-  @apply m-2;
-  @apply py-2 px-4;
-  @apply rounded-lg;
-  @apply text-sm;
 }
 </style>

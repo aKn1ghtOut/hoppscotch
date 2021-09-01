@@ -1,33 +1,48 @@
 <template>
-  <div class="page">
-    <section id="options">
-      <SmartTabs>
-        <SmartTab :id="'websocket'" :label="$t('websocket')" :selected="true">
-          <RealtimeWebsocket />
-        </SmartTab>
-
-        <SmartTab :id="'sse'" :label="$t('sse')">
-          <RealtimeSse />
-        </SmartTab>
-
-        <SmartTab :id="'socketio'" :label="$t('socketio')">
-          <RealtimeSocketio />
-        </SmartTab>
-
-        <SmartTab :id="'mqtt'" :label="$t('mqtt')">
-          <RealtimeMqtt />
-        </SmartTab>
-      </SmartTabs>
-    </section>
-  </div>
+  <SmartTabs
+    class="h-full overflow-hidden"
+    styles="sticky bg-primary top-0 z-10 border-b border-dividerLight !overflow-visible"
+  >
+    <SmartTab
+      id="websocket"
+      :label="$t('tab.websocket')"
+      :selected="true"
+      style="height: calc(100% - var(--sidebar-primary-sticky-fold))"
+    >
+      <RealtimeWebsocket />
+    </SmartTab>
+    <SmartTab
+      id="sse"
+      :label="$t('tab.sse')"
+      style="height: calc(100% - var(--sidebar-primary-sticky-fold))"
+    >
+      <RealtimeSse />
+    </SmartTab>
+    <SmartTab
+      id="socketio"
+      :label="$t('tab.socketio')"
+      style="height: calc(100% - var(--sidebar-primary-sticky-fold))"
+    >
+      <RealtimeSocketio />
+    </SmartTab>
+    <SmartTab
+      id="mqtt"
+      :label="$t('tab.mqtt')"
+      style="height: calc(100% - var(--sidebar-primary-sticky-fold))"
+    >
+      <RealtimeMqtt />
+    </SmartTab>
+  </SmartTabs>
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   head() {
     return {
-      title: `Realtime • Hoppscotch`,
+      title: `${this.$t("navigation.realtime")} • Hoppscotch`,
     }
   },
-}
+})
 </script>

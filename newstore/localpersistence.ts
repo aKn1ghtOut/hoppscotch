@@ -16,14 +16,27 @@ import {
   graphqlHistoryStore,
   setRESTHistoryEntries,
   setGraphqlHistoryEntries,
+  translateToNewRESTHistory,
+  translateToNewGQLHistory,
 } from "./history"
 import {
   restCollectionStore,
   graphqlCollectionStore,
   setGraphqlCollections,
   setRESTCollections,
+  translateToNewRESTCollection,
+  translateToNewGQLCollection,
 } from "./collections"
-import { replaceEnvironments, environments$ } from "./environments"
+import {
+  replaceEnvironments,
+  environments$,
+  Environment,
+  addGlobalEnvVariable,
+  setGlobalEnvVariables,
+  globalEnv$,
+} from "./environments"
+import { restRequest$, setRESTRequest } from "./RESTSession"
+import { translateToNewRequest } from "~/helpers/types/HoppRESTRequest"
 
 function checkAndMigrateOldSettings() {
   const vuexData = JSON.parse(window.localStorage.getItem("vuex") || "{}")
@@ -81,7 +94,7 @@ function checkAndMigrateOldSettings() {
     const color = window.localStorage.getItem("nuxt-color-mode") as HoppBgColor
     applySetting("BG_COLOR", color)
 
-    window.localStorage.removeItem("BG_COLOR")
+    window.localStorage.removeItem("nuxt-color-mode")
   }
 }
 
@@ -102,11 +115,11 @@ function setupSettingsPersistence() {
 function setupHistoryPersistence() {
   const restHistoryData = JSON.parse(
     window.localStorage.getItem("history") || "[]"
-  )
+  ).map(translateToNewRESTHistory)
 
   const graphqlHistoryData = JSON.parse(
     window.localStorage.getItem("graphqlHistory") || "[]"
-  )
+  ).map(translateToNewGQLHistory)
 
   setRESTHistoryEntries(restHistoryData)
   setGraphqlHistoryEntries(graphqlHistoryData)
@@ -123,11 +136,11 @@ function setupHistoryPersistence() {
 function setupCollectionsPersistence() {
   const restCollectionData = JSON.parse(
     window.localStorage.getItem("collections") || "[]"
-  )
+  ).map(translateToNewRESTCollection)
 
   const graphqlCollectionData = JSON.parse(
     window.localStorage.getItem("collectionsGraphql") || "[]"
-  )
+  ).map(translateToNewGQLCollection)
 
   setRESTCollections(restCollectionData)
   setGraphqlCollections(graphqlCollectionData)
@@ -142,9 +155,28 @@ function setupCollectionsPersistence() {
 }
 
 function setupEnvironmentsPersistence() {
-  const environmentsData = JSON.parse(
+  const environmentsData: Environment[] = JSON.parse(
     window.localStorage.getItem("environments") || "[]"
   )
+
+  // Check if a global env is defined and if so move that to globals
+  const globalIndex = environmentsData.findIndex(
+    (x) => x.name.toLowerCase() === "globals"
+  )
+
+  if (globalIndex !== -1) {
+    const globalEnv = environmentsData[globalIndex]
+    globalEnv.variables.forEach((variable) => addGlobalEnvVariable(variable))
+
+    // Remove global from environments
+    environmentsData.splice(globalIndex, 1)
+
+    // Just sync the changes manually
+    window.localStorage.setItem(
+      "environments",
+      JSON.stringify(environmentsData)
+    )
+  }
 
   replaceEnvironments(environmentsData)
 
@@ -153,12 +185,41 @@ function setupEnvironmentsPersistence() {
   })
 }
 
+function setupGlobalEnvsPersistence() {
+  const globals: Environment["variables"] = JSON.parse(
+    window.localStorage.getItem("globalEnv") || "[]"
+  )
+
+  setGlobalEnvVariables(globals)
+
+  globalEnv$.subscribe((vars) => {
+    window.localStorage.setItem("globalEnv", JSON.stringify(vars))
+  })
+}
+
+function setupRequestPersistence() {
+  const localRequest = JSON.parse(
+    window.localStorage.getItem("restRequest") || "null"
+  )
+
+  if (localRequest) {
+    const parsedLocal = translateToNewRequest(localRequest)
+    setRESTRequest(parsedLocal)
+  }
+
+  restRequest$.subscribe((req) => {
+    window.localStorage.setItem("restRequest", JSON.stringify(req))
+  })
+}
+
 export function setupLocalPersistence() {
   checkAndMigrateOldSettings()
 
   setupSettingsPersistence()
+  setupRequestPersistence()
   setupHistoryPersistence()
   setupCollectionsPersistence()
+  setupGlobalEnvsPersistence()
   setupEnvironmentsPersistence()
 }
 

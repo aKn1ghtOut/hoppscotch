@@ -1,40 +1,38 @@
 <template>
-  <SmartModal v-if="show" @close="hideModal">
-    <template #header>
-      <h3 class="heading">{{ $t("edit_request") }}</h3>
-      <div>
-        <button class="icon button" @click="hideModal">
-          <i class="material-icons">close</i>
-        </button>
+  <SmartModal v-if="show" :title="$t('modal.edit_request')" @close="hideModal">
+    <template #body>
+      <div class="flex flex-col px-2">
+        <input
+          id="selectLabelEditReq"
+          v-model="requestUpdateData.name"
+          v-focus
+          class="input floating-input"
+          placeholder=" "
+          type="text"
+          autocomplete="off"
+          @keyup.enter="saveRequest"
+        />
+        <label for="selectLabelEditReq">
+          {{ $t("action.label") }}
+        </label>
       </div>
     </template>
-    <template #body>
-      <label for="selectLabelEditReq">{{ $t("label") }}</label>
-      <input
-        id="selectLabelEditReq"
-        v-model="requestUpdateData.name"
-        class="input"
-        type="text"
-        :placeholder="placeholderReqName"
-        @keyup.enter="saveRequest"
-      />
-    </template>
     <template #footer>
-      <span></span>
       <span>
-        <button class="icon button" @click="hideModal">
-          {{ $t("cancel") }}
-        </button>
-        <button class="icon button primary" @click="saveRequest">
-          {{ $t("save") }}
-        </button>
+        <ButtonPrimary :label="$t('action.save')" @click.native="saveRequest" />
+        <ButtonSecondary
+          :label="$t('action.cancel')"
+          @click.native="hideModal"
+        />
       </span>
     </template>
   </SmartModal>
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     show: Boolean,
     placeholderReqName: { type: String, default: null },
@@ -48,6 +46,12 @@ export default {
   },
   methods: {
     saveRequest() {
+      if (!this.requestUpdateData.name) {
+        this.$toast.error(this.$t("request.invalid_name"), {
+          icon: "error_outline",
+        })
+        return
+      }
       this.$emit("submit", this.requestUpdateData)
       this.hideModal()
     },
@@ -56,5 +60,5 @@ export default {
       this.$emit("hide-modal")
     },
   },
-}
+})
 </script>

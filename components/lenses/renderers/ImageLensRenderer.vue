@@ -1,39 +1,61 @@
 <template>
   <div>
-    <div class="row-wrapper">
-      <label for="body">{{ $t("response_body") }}</label>
-      <div>
-        <button
+    <div
+      class="
+        bg-primary
+        border-b border-dividerLight
+        flex flex-1
+        top-lowerSecondaryStickyFold
+        pl-4
+        z-10
+        sticky
+        items-center
+        justify-between
+      "
+    >
+      <label class="font-semibold text-secondaryLight">
+        {{ $t("response.body") }}
+      </label>
+      <div class="flex">
+        <ButtonSecondary
           v-if="response.body"
           ref="downloadResponse"
-          v-tooltip="$t('download_file')"
-          class="icon button"
-          @click="downloadResponse"
-        >
-          <i class="material-icons">{{ downloadIcon }}</i>
-        </button>
+          v-tippy="{ theme: 'tooltip' }"
+          :title="$t('action.download_file')"
+          :svg="downloadIcon"
+          @click.native="downloadResponse"
+        />
       </div>
     </div>
-    <div id="response-details-wrapper">
-      <img class="max-w-full" :src="imageSource" />
+    <div class="flex relative">
+      <img
+        class="border-b border-dividerLight flex max-w-full flex-1"
+        :src="imageSource"
+      />
     </div>
   </div>
 </template>
 
 <script>
-export default {
+import { defineComponent } from "@nuxtjs/composition-api"
+
+export default defineComponent({
   props: {
     response: { type: Object, default: () => {} },
   },
   data() {
     return {
       imageSource: "",
-      downloadIcon: "save_alt",
+      downloadIcon: "download",
     }
   },
   computed: {
     responseType() {
-      return (this.response.headers["content-type"] || "")
+      return (
+        this.response.headers.find(
+          (h) => h.key.toLowerCase() === "content-type"
+        ).value || ""
+      )
         .split(";")[0]
         .toLowerCase()
     },
@@ -80,16 +102,16 @@ export default {
       a.download = `${url.split("/").pop().split("#")[0].split("?")[0]}`
       document.body.appendChild(a)
       a.click()
-      this.downloadIcon = "done"
-      this.$toast.success(this.$t("download_started"), {
-        icon: "done",
+      this.downloadIcon = "check"
+      this.$toast.success(this.$t("state.download_started"), {
+        icon: "downloading",
       })
       setTimeout(() => {
         document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-        this.downloadIcon = "save_alt"
+        URL.revokeObjectURL(url)
+        this.downloadIcon = "download"
       }, 1000)
     },
   },
-}
+})
 </script>

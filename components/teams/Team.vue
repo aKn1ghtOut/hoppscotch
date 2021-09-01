@@ -1,87 +1,93 @@
 <template>
-  <div class="row-wrapper">
-    <div>
-      <button
-        v-tooltip.right="team.myRole === 'OWNER' ? $t('edit') : ''"
-        class="icon button"
-        @click="team.myRole === 'OWNER' ? $emit('edit-team') : ''"
-      >
-        <i class="material-icons">group</i>
-        <span>{{ team.name }}</span>
-      </button>
+  <div class="border border-dividerLight rounded flex flex-1 items-end">
+    <div class="flex flex-1 items-start">
+      <div class="p-4">
+        <label
+          class="cursor-pointer transition hover:text-secondaryDark"
+          @click="team.myRole === 'OWNER' ? $emit('edit-team') : ''"
+        >
+          {{ team.name || $t("state.nothing_found") }}
+        </label>
+        <div class="flex -space-x-1 mt-2 overflow-hidden">
+          <img
+            v-for="(member, index) in team.members"
+            :key="`member-${index}`"
+            v-tippy="{ theme: 'tooltip' }"
+            :title="member.user.displayName"
+            :src="member.user.photoURL"
+            :alt="member.user.displayName"
+            class="rounded-full h-5 ring-primary ring-2 w-5 inline-block"
+          />
+        </div>
+      </div>
     </div>
-    <v-popover>
-      <button v-tooltip.left="$t('more')" class="tooltip-target icon button">
-        <i class="material-icons">more_vert</i>
-      </button>
-      <template #popover>
-        <div v-if="team.myRole === 'OWNER'">
-          <button
-            v-close-popover
-            class="icon button"
-            @click="$emit('edit-team')"
-          >
-            <i class="material-icons">create</i>
-            <span>{{ $t("edit") }}</span>
-          </button>
-        </div>
-        <div v-if="team.myRole === 'OWNER'">
-          <button v-close-popover class="icon button" @click="deleteTeam">
-            <i class="material-icons">delete</i>
-            <span>{{ $t("delete") }}</span>
-          </button>
-        </div>
-        <div>
-          <button
-            v-close-popover
-            class="icon button"
-            :disabled="team.myRole === 'OWNER' && team.ownersCount == 1"
-            @click="exitTeam"
-          >
-            <i class="material-icons">remove</i>
-            <div
-              v-tooltip.left="{
-                content:
-                  team.myRole === 'OWNER' && team.ownersCount == 1
-                    ? $t('disable_exit')
-                    : '',
-              }"
-            >
-              <span>{{ $t("exit") }}</span>
-            </div>
-          </button>
-        </div>
-      </template>
-    </v-popover>
+    <span>
+      <tippy ref="options" interactive trigger="click" theme="popover" arrow>
+        <template #trigger>
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            :title="$t('action.more')"
+            svg="more-vertical"
+          />
+        </template>
+        <SmartItem
+          v-if="team.myRole === 'OWNER'"
+          svg="edit"
+          :label="$t('action.edit')"
+          @click.native="
+            $emit('edit-team')
+            $refs.options.tippy().hide()
+          "
+        />
+        <SmartItem
+          v-if="team.myRole === 'OWNER'"
+          svg="trash-2"
+          color="red"
+          :label="$t('action.delete')"
+          @click.native="
+            deleteTeam()
+            $refs.options.tippy().hide()
+          "
+        />
+        <SmartItem
+          v-if="!(team.myRole === 'OWNER' && team.ownersCount == 1)"
+          svg="trash"
+          :label="$t('team.exit')"
+          @click.native="
+            exitTeam()
+            $refs.options.tippy().hide()
+          "
+        />
+      </tippy>
+    </span>
   </div>
 </template>
 
 <script>
+import { defineComponent } from "@nuxtjs/composition-api"
 import * as teamUtils from "~/helpers/teams/utils"
 
-export default {
+export default defineComponent({
   props: {
     team: { type: Object, default: () => {} },
     teamID: { type: String, default: null },
   },
   methods: {
     deleteTeam() {
-      if (!confirm("Are you sure you want to remove this team?")) return
+      if (!confirm(this.$t("confirm.remove_team"))) return
       // Call to the graphql mutation
       teamUtils
         .deleteTeam(this.$apollo, this.teamID)
         .then(() => {
-          // Result
-          this.$toast.success(this.$t("new_team_created"), {
+          this.$toast.success(this.$t("team.deleted"), {
             icon: "done",
           })
         })
-        .catch((error) => {
-          // Error
-          this.$toast.error(this.$t("error_occurred"), {
-            icon: "done",
+        .catch((e) => {
+          this.$toast.error(this.$t("error.something_went_wrong"), {
+            icon: "error_outline",
           })
-          console.error(error)
+          console.error(e)
         })
     },
     exitTeam() {
@@ -89,19 +95,17 @@ export default {
       teamUtils
         .exitTeam(this.$apollo, this.teamID)
         .then(() => {
-          // Result
-          this.$toast.success(this.$t("team_exited"), {
+          this.$toast.success(this.$t("team.left"), {
             icon: "done",
           })
         })
-        .catch((error) => {
-          // Error
-          this.$toast.error(this.$t("error_occurred"), {
-            icon: "error",
+        .catch((e) => {
+          this.$toast.error(this.$t("error.something_went_wrong"), {
+            icon: "error_outline",
           })
-          console.error(error)
+          console.error(e)
         })
     },
   },
-}
+})
 </script>
