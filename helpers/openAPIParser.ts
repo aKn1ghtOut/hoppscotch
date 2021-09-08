@@ -1,3 +1,4 @@
+import { isArray } from "lodash"
 import { OpenAPIV3 } from "openapi-types"
 
 let components: OpenAPIV3.ComponentsObject = {}
@@ -27,40 +28,29 @@ function isOperationType(object: any): object is OpenAPIV3.OperationObject {
   return !!object.responses
 }
 
-// function isRequestBodyType(object: any): object is OpenAPIV3.RequestBodyObject {
-//   return true
-// }
-
-// function isParameterType(object: any): object is OpenAPIV3.ParameterObject {
-//   return true
-// }
-
-// const isSchemaObjectType = (object: any): object is OpenAPIV3.SchemaObject =>
-//   true
-// const isResponseObjectType = (
-//   object: any
-// ): object is OpenAPIV3.ResponseObject => true
 const isExampleObjectType = (object: any): object is OpenAPIV3.ExampleObject =>
   !!object.value
-// const isParameterObjectType = (
-//   object: any
-// ): object is OpenAPIV3.ParameterObject => true
+
 const isRequestBodyObjectType = (
   object: any
 ): object is OpenAPIV3.RequestBodyObject => !!object.content
-// const isHeaderObjectType = (object: any): object is OpenAPIV3.HeaderObject =>
-//   true
-// const isSecuritySchemeObjectType = (
-//   object: any
-// ): object is OpenAPIV3.SecuritySchemeObject => true
-// const isLinkObjectType = (object: any): object is OpenAPIV3.LinkObject => true
-// const isCallbackObjectType = (
-//   object: any
-// ): object is OpenAPIV3.CallbackObject => true
 
 const isReferenceObjectType = (
   object: any
 ): object is OpenAPIV3.ReferenceObject => !!object.$ref
+
+// function resolveNested(data: Object | Array<any>) : any {
+//   if (isArray(data)) {
+//     return data.map(data => resolveNested(data))
+//   }
+//   if (["string", "number", "bigint", "boolean", "undefined", "symbol", "null"].includes(typeof data)) {
+//     return data
+//   }
+//   for(const [key, value] of Object.entries(data)) {
+//     if (typeof key !== "string") continue
+//     data[key] = resolveNested(value)
+//   }
+// }
 
 function fetchComponent(
   child:

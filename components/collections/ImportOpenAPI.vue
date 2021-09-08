@@ -1,84 +1,61 @@
 <template>
-  <SmartModal v-if="show" @close="hideModal">
-    <template #header>
-      <h3 class="heading">{{ $t("import_openapi") }}</h3>
-    </template>
+  <SmartModal v-if="show" @close="hideModal" :title="$t('import_openapi')">
     <template #body>
-      <ul
-        class="
-          border-b border-dashed
-          divide-y
-          md:divide-x
-          border-divider
-          divide-dashed divide-divider
-          md:divide-y-0
-          border-t
-        "
+      <div
+        class="flex flex-col px-2"
       >
-        <li>
-          <label>{{ $t("server_url") }}</label>
-          <input
-            v-model="serverURL"
-            class="input"
-            type="text"
-            placeholder="http://example.com/"
-          />
-        </li>
-      </ul>
-      <label>{{ $t("request") }}</label>
-      <ul
+        <input
+          id="serverUrlEdit"
+          v-model="serverURL"
+          class="input"
+          placeholder=" "
+          type="text"
+          autocomplete="off"
+        />
+        <label for="serverUrlEdit">
+          {{ $t("server_url") }}
+        </label>
+      </div>
+      <label>Requests</label>
+      <div
         v-for="(request, index) in imported.requests"
         :key="`${request.name}_${index}`"
-        class="
-          border-b border-dashed
-          divide-y
-          md:divide-x
-          border-divider
-          divide-dashed divide-divider
-          md:divide-y-0
-        "
-        :class="{ 'border-t': index == 0 }"
+        class="divide-x divide-dividerLight border-b border-dividerLight flex"
       >
-        <div>
-          <li>
-            <button
-              v-tooltip.bottom="{
-                content:
+          <input class="input bg-transparent flex flex-1 py-2 px-4" :value="request.name" disabled />
+        <span>
+          <ButtonSecondary
+            v-tippy="{ theme: 'tooltip' }"
+            :title="
                   importedRequests[index] === true
                     ? $t('turn_off')
-                    : $t('turn_on'),
-              }"
-              class="icon button"
-              @click="
-                () => {
+                    : $t('turn_on')
+            "
+            :svg="
+              importedRequests[index] === true
+                  ? 'check-circle'
+                  : 'circle'
+            "
+            color="green"
+            @click.native="
+              () => {
                   toggleEnabled(index)
                 }
-              "
-            >
-              <i class="material-icons">
-                {{
-                  importedRequests[index] === true
-                    ? "check_box"
-                    : "check_box_outline_blank"
-                }}
-              </i>
-            </button>
-          </li>
-        </div>
-        <li>
-          <input class="input" :value="request.name" disabled />
-        </li>
-      </ul>
+            "
+          />
+        </span>
+      </div>
     </template>
     <template #footer>
-      <span></span>
       <span>
-        <button class="icon button" @click="hideModal">
-          {{ $t("cancel") }}
-        </button>
-        <button class="icon button primary" @click="importCollection">
-          {{ $t("save") }}
-        </button>
+        <ButtonPrimary
+          :label="$t('action.save')"
+          @click.native="importCollection"
+        />
+        <ButtonSecondary
+          :label="$t('action.cancel')"
+          @click.native="hideModal"
+        />
       </span>
     </template>
   </SmartModal>
